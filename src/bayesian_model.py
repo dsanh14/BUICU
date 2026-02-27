@@ -8,6 +8,10 @@ Implements the full probabilistic pipeline:
   2. Posterior predictive (Negative Binomial) for future admissions
   3. Monte Carlo occupancy simulation with full uncertainty propagation
   4. Crowding-probability computation  P(O_t > capacity | data)
+  5. Windowed (adaptive) Bayesian model for non-stationary regimes
+  6. KL divergence tracking for information gain quantification
+  7. Prior sensitivity analysis
+  8. Anomaly detection via posterior predictive p-values
 
 Random variables (formal definitions):
 
@@ -24,6 +28,7 @@ because it involves a convolution of correlated random variables.
 
 import numpy as np
 from scipy import stats
+from scipy.special import gammaln, digamma
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional
 
@@ -37,8 +42,6 @@ class BeliefState:
       - E[λ] = alpha / beta
       - Var[λ] = alpha / beta²
       - The posterior concentrates as more data is observed.
-
-    We also track the history of belief states for visualization.
     """
     alpha: float
     beta: float
@@ -70,6 +73,26 @@ class BeliefState:
         return stats.gamma.pdf(x, a=self.alpha, scale=1.0 / self.beta)
 
 
+def kl_divergence_gamma(alpha_p: float, beta_p: float,
+                        alpha_q: float, beta_q: float) -> float:
+    """
+    KL(p || q) between two Gamma distributions in closed form.
+
+    KL(Gamma(α_p,β_p) || Gamma(α_q,β_q)) =
+        (α_p - α_q) ψ(α_p) - ln Γ(α_p) + ln Γ(α_q)
+        + α_q (ln β_p - ln β_q) + α_p (β_q - β_p) / β_p
+
+    This measures how much information the posterior (p) contains
+    beyond what the prior (q) already encoded.
+    """
+    return (
+        (alpha_p - alpha_q) * digamma(alpha_p)
+        - gammaln(alpha_p) + gammaln(alpha_q)
+        + alpha_q * (np.log(beta_p) - np.log(beta_q))
+        + alpha_p * (beta_q - beta_p) / beta_p
+    )
+
+
 @dataclass
 class BeliefHistory:
     """Tracks the evolution of beliefs over time for visualization."""
@@ -81,8 +104,13 @@ class BeliefHistory:
     ci_highs: List[float] = field(default_factory=list)
     observed_counts: List[int] = field(default_factory=list)
     window_labels: List[str] = field(default_factory=list)
+    kl_divergences: List[float] = field(default_factory=list)
+    anomaly_flags: List[bool] = field(default_factory=list)
+    predictive_pvalues: List[float] = field(default_factory=list)
 
-    def record(self, belief: BeliefState, observed_k: int, label: str = ""):
+    def record(self, belief: BeliefState, observed_k: int, label: str = "",
+               kl_div: float = 0.0, is_anomaly: bool = False,
+               p_value: float = 0.5):
         self.times.append(belief.time)
         self.alphas.append(belief.alpha)
         self.betas.append(belief.beta)
@@ -92,6 +120,9 @@ class BeliefHistory:
         self.ci_highs.append(ci[1])
         self.observed_counts.append(observed_k)
         self.window_labels.append(label)
+        self.kl_divergences.append(kl_div)
+        self.anomaly_flags.append(is_anomaly)
+        self.predictive_pvalues.append(p_value)
 
 
 class BayesianArrivalModel:
@@ -124,29 +155,39 @@ class BayesianArrivalModel:
     def update(self, observed_count: int, window_duration: float,
                label: str = "") -> BeliefState:
         """
-        Bayesian update after observing `observed_count` arrivals in a window
-        of `window_duration` days.
+        Bayesian update with KL divergence tracking and anomaly detection.
 
         Conjugate update:
             α_new = α_old + k
             β_new = β_old + Δt
 
-        Parameters
-        ----------
-        observed_count : int
-            Number of arrivals observed in this window.
-        window_duration : float
-            Duration of observation window in days.
-        label : str
-            Optional label for this update (e.g., "day 5", "surge onset").
+        Additionally computes:
+          - KL(posterior_new || posterior_old): information gained
+          - Posterior predictive p-value: P(N ≥ k) under previous belief
+            → anomaly if p < 0.025 or p > 0.975
         """
+        old_alpha, old_beta = self.belief.alpha, self.belief.beta
+
+        # Anomaly detection: is this observation surprising given current belief?
+        p_nb = old_beta / (old_beta + window_duration)
+        p_value = 1.0 - stats.nbinom.cdf(observed_count - 1, n=old_alpha, p=p_nb)
+        is_anomaly = (p_value < 0.025) or (p_value > 0.975)
+
+        # Conjugate update
+        new_alpha = old_alpha + observed_count
+        new_beta = old_beta + window_duration
+
+        # KL divergence: information gained from this observation
+        kl_div = kl_divergence_gamma(new_alpha, new_beta, old_alpha, old_beta)
+
         self.belief = BeliefState(
-            alpha=self.belief.alpha + observed_count,
-            beta=self.belief.beta + window_duration,
+            alpha=new_alpha, beta=new_beta,
             time=self.belief.time + window_duration,
             total_arrivals=self.belief.total_arrivals + observed_count,
         )
-        self.history.record(self.belief, observed_count, label)
+        self.history.record(self.belief, observed_count, label,
+                            kl_div=kl_div, is_anomaly=is_anomaly,
+                            p_value=p_value)
         return self.belief
 
     def posterior_predictive_pmf(self, future_window: float,
@@ -159,18 +200,6 @@ class BayesianArrivalModel:
 
         This is the key advantage of Bayesian inference: we propagate
         parameter uncertainty into predictions automatically.
-
-        Parameters
-        ----------
-        future_window : float
-            Prediction horizon in days.
-        max_k : int
-            Maximum count to evaluate.
-
-        Returns
-        -------
-        k_values : np.ndarray of ints
-        pmf : np.ndarray of probabilities
         """
         alpha = self.belief.alpha
         beta = self.belief.beta
@@ -217,6 +246,88 @@ class BayesianArrivalModel:
             label = f"day {i + 1}"
             self.update(int(k), window_size, label=label)
         return self.history
+
+
+class WindowedBayesianModel:
+    """
+    Adaptive Bayesian model using a sliding window of recent observations.
+
+    Motivation: The stationary model (BayesianArrivalModel) uses ALL historical
+    data equally. When the arrival rate changes (surges, policy shifts), the
+    stationary posterior is slow to react because it is anchored by old data.
+
+    The windowed model uses only the last W days of observations:
+        α_window = α₀ + Σ(k_i for last W days)
+        β_window = β₀ + W
+
+    This is still exact conjugate inference — we simply restrict the
+    sufficient statistics to a sliding window. The tradeoff:
+      - Smaller W → faster adaptation, higher variance
+      - Larger W → slower adaptation, lower variance
+
+    This directly addresses the non-stationarity failure mode (FM1).
+    """
+
+    def __init__(self, window_days: int = 14,
+                 alpha_0: float = 2.0, beta_0: float = 0.2):
+        self.window_days = window_days
+        self.alpha_0 = alpha_0
+        self.beta_0 = beta_0
+        self.history = BeliefHistory()
+
+    def fit(self, daily_counts: np.ndarray) -> BeliefHistory:
+        """Compute windowed posterior at each time step."""
+        n = len(daily_counts)
+        for t in range(n):
+            start = max(0, t - self.window_days + 1)
+            window_data = daily_counts[start:t + 1]
+            w = len(window_data)
+
+            alpha_t = self.alpha_0 + np.sum(window_data)
+            beta_t = self.beta_0 + w
+
+            belief = BeliefState(alpha=alpha_t, beta=beta_t, time=float(t + 1),
+                                 total_arrivals=int(np.sum(window_data)))
+
+            # KL from prior to this windowed posterior
+            kl = kl_divergence_gamma(alpha_t, beta_t, self.alpha_0, self.beta_0)
+
+            self.history.record(belief, int(daily_counts[t]),
+                                label=f"day {t + 1}", kl_div=kl)
+        return self.history
+
+
+class PriorSensitivityAnalysis:
+    """
+    Demonstrates Bayesian robustness: different priors converge to
+    similar posteriors as data accumulates.
+
+    We run three priors:
+      1. Uninformative:       Gamma(0.01, 0.001)  — nearly flat
+      2. Weakly informative:  Gamma(2, 0.2)       — centered at 10
+      3. Strong (wrong):      Gamma(50, 10)        — centered at 5 (deliberately wrong)
+
+    The convergence of posteriors despite different priors is a key
+    Bayesian insight that demonstrates understanding of how evidence
+    overwhelms prior beliefs.
+    """
+
+    PRIORS = {
+        'Uninformative': (0.01, 0.001),
+        'Weakly informative': (2.0, 0.2),
+        'Strong (wrong center)': (50.0, 10.0),
+    }
+
+    def __init__(self):
+        self.histories = {}
+
+    def run(self, daily_counts: np.ndarray) -> dict:
+        """Run sequential updating under each prior and return histories."""
+        for name, (a0, b0) in self.PRIORS.items():
+            model = BayesianArrivalModel(alpha_0=a0, beta_0=b0)
+            model.sequential_update(daily_counts)
+            self.histories[name] = model.history
+        return self.histories
 
 
 class LOSModel:
