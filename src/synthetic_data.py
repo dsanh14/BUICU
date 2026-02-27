@@ -42,11 +42,12 @@ class SyntheticICUConfig:
     weekly_amplitude: float = 0.10
 
     # LOS mixture: component 1 = short acute, component 2 = long chronic
-    los_mixture_weight: float = 0.75       # P(short stay)
-    los_short_mu: float = 1.0              # log-hours; exp(1.0) ≈ 2.7h median → scaled below
-    los_short_sigma: float = 0.6
-    los_long_mu: float = 3.5               # log-hours; exp(3.5) ≈ 33h median → scaled below
-    los_long_sigma: float = 0.9
+    # Calibrated to MIMIC-IV: overall median ≈ 2 days, mean ≈ 4 days
+    los_mixture_weight: float = 0.70       # P(short stay)
+    los_short_mu: float = 3.5              # log-hours; exp(3.5) ≈ 33h ≈ 1.4d median
+    los_short_sigma: float = 0.5
+    los_long_mu: float = 5.1               # log-hours; exp(5.1) ≈ 164h ≈ 6.8d median
+    los_long_sigma: float = 0.7
 
     # Noise
     missing_discharge_prob: float = 0.02   # fraction of stays with missing discharge
