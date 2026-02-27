@@ -30,7 +30,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from src.synthetic_data import SyntheticICUConfig, generate_dataset, summarize_dataset
 from src.bayesian_model import (
     BayesianArrivalModel, LOSModel, OccupancySimulator, BeliefState,
-    WindowedBayesianModel, PriorSensitivityAnalysis, kl_divergence_gamma
+    WindowedBayesianModel, PriorSensitivityAnalysis, kl_divergence_gamma,
+    ModelComparisonScorer, SensitivityAnalysis
 )
 from src.failure_modes import FailureModeAnalyzer, format_failure_report
 from src.nl_interface import (
@@ -42,7 +43,8 @@ from src.visualizations import (
     plot_belief_evolution, plot_posterior_predictive_check,
     plot_calibration, plot_occupancy_forecast, plot_los_distribution,
     plot_prior_vs_posterior, plot_model_comparison, plot_prior_sensitivity,
-    plot_information_gain, create_summary_dashboard
+    plot_information_gain, plot_log_score_comparison,
+    plot_sensitivity_analysis, create_summary_dashboard
 )
 
 
@@ -338,93 +340,156 @@ def step8_failure_analysis(daily_counts, data):
     return reports, penalty
 
 
-def step9_visualizations(model, daily_counts, sim_result, data,
-                          alpha_0, beta_0, w_history, sensitivity_histories):
-    """Step 9: Generate all visualizations."""
+def step9_model_scoring(model, daily_counts, w_history, surge_windows):
+    """
+    Step 9: Formal model comparison via one-step-ahead log predictive score.
+
+    This is a proper scoring rule — the model that assigns higher probability
+    to what actually happened is objectively better.
+    """
     print("=" * 70)
-    print("STEP 9: Generating visualizations (10 figures)")
+    print("STEP 9: Formal model comparison (log predictive score)")
+    print("=" * 70)
+
+    score_result = ModelComparisonScorer.compute_log_scores(
+        daily_counts, model.history, w_history
+    )
+
+    print(f"  Stationary model total log score: {score_result['stationary_total']:.1f}")
+    print(f"  Windowed model total log score:   {score_result['windowed_total']:.1f}")
+    print(f"  Difference (windowed - stat):     {score_result['difference']:.1f}")
+    print(f"  Mean per-day score (stationary):  {score_result['stationary_mean']:.3f}")
+    print(f"  Mean per-day score (windowed):    {score_result['windowed_mean']:.3f}")
+
+    winner = "windowed" if score_result['difference'] > 0 else "stationary"
+    print(f"\n  Winner by log predictive score: {winner} model")
+    print()
+
+    return score_result
+
+
+def step10_sensitivity(model, los_model, current_patients, w_history, capacity):
+    """
+    Step 10: Sensitivity analysis on P(overcrowded).
+
+    Varies arrival rate model, LOS assumptions, and capacity to show
+    which modeling choices most affect the conclusion.
+    """
+    print("=" * 70)
+    print("STEP 10: Sensitivity analysis")
+    print("=" * 70)
+
+    # Get windowed belief at the last timestep
+    w_belief = BeliefState(
+        alpha=w_history.alphas[-1], beta=w_history.betas[-1]
+    )
+
+    sensitivity = SensitivityAnalysis.run(
+        current_patients, los_model,
+        model.belief, w_belief,
+        capacity, forecast_hours=48, n_mc=3000
+    )
+
+    for name, res in sensitivity.items():
+        print(f"  {name:30s}: P(overcrowded) = {100 * res['p_overcrowded']:5.1f}%  "
+              f"(cap={res['capacity']}, mean_occ={res['mean_peak']:.0f})")
+    print()
+
+    return sensitivity
+
+
+def step11_visualizations(model, daily_counts, sim_result, data,
+                           alpha_0, beta_0, w_history, sensitivity_histories,
+                           score_result, sensitivity_result):
+    """Step 11: Generate all visualizations (12 figures)."""
+    print("=" * 70)
+    print("STEP 11: Generating visualizations (12 figures)")
     print("=" * 70)
 
     history = model.history
+    N = 12
 
-    # 1. Belief evolution (enhanced with KL + anomalies)
     plot_belief_evolution(
         history, data['surge_windows'],
         save_path=os.path.join(OUTPUT_DIR, "01_belief_evolution.png")
     )
-    print("  [1/10] 01_belief_evolution.png")
+    print(f"  [ 1/{N}] 01_belief_evolution.png")
 
-    # 2. Posterior predictive check
     plot_posterior_predictive_check(
         model, daily_counts,
         save_path=os.path.join(OUTPUT_DIR, "02_posterior_predictive_check.png")
     )
-    print("  [2/10] 02_posterior_predictive_check.png")
+    print(f"  [ 2/{N}] 02_posterior_predictive_check.png")
 
-    # 3. Calibration (with windowed comparison)
     plot_calibration(
         model, daily_counts, windowed_history=w_history,
         save_path=os.path.join(OUTPUT_DIR, "03_calibration.png")
     )
-    print("  [3/10] 03_calibration.png")
+    print(f"  [ 3/{N}] 03_calibration.png")
 
-    # 4. Occupancy forecast
     plot_occupancy_forecast(
         sim_result,
         save_path=os.path.join(OUTPUT_DIR, "04_occupancy_forecast.png")
     )
-    print("  [4/10] 04_occupancy_forecast.png")
+    print(f"  [ 4/{N}] 04_occupancy_forecast.png")
 
-    # 5. Model comparison: stationary vs. windowed
     plot_model_comparison(
         history, w_history, data['surge_windows'],
         save_path=os.path.join(OUTPUT_DIR, "05_model_comparison.png")
     )
-    print("  [5/10] 05_model_comparison.png")
+    print(f"  [ 5/{N}] 05_model_comparison.png")
 
-    # 6. Prior sensitivity analysis
     plot_prior_sensitivity(
         sensitivity_histories,
         save_path=os.path.join(OUTPUT_DIR, "06_prior_sensitivity.png")
     )
-    print("  [6/10] 06_prior_sensitivity.png")
+    print(f"  [ 6/{N}] 06_prior_sensitivity.png")
 
-    # 7. Information gain + anomaly detection
     plot_information_gain(
         history, data['surge_windows'],
         save_path=os.path.join(OUTPUT_DIR, "07_information_gain.png")
     )
-    print("  [7/10] 07_information_gain.png")
+    print(f"  [ 7/{N}] 07_information_gain.png")
 
-    # 8. LOS distribution
     plot_los_distribution(
         data['los_hours'],
         save_path=os.path.join(OUTPUT_DIR, "08_los_distribution.png")
     )
-    print("  [8/10] 08_los_distribution.png")
+    print(f"  [ 8/{N}] 08_los_distribution.png")
 
-    # 9. Prior vs posterior
     plot_prior_vs_posterior(
         model, alpha_0, beta_0,
         save_path=os.path.join(OUTPUT_DIR, "09_prior_vs_posterior.png")
     )
-    print("  [9/10] 09_prior_vs_posterior.png")
+    print(f"  [ 9/{N}] 09_prior_vs_posterior.png")
 
-    # 10. Full dashboard
+    plot_log_score_comparison(
+        score_result, data['surge_windows'],
+        save_path=os.path.join(OUTPUT_DIR, "10_log_score_comparison.png")
+    )
+    print(f"  [10/{N}] 10_log_score_comparison.png")
+
+    plot_sensitivity_analysis(
+        sensitivity_result,
+        save_path=os.path.join(OUTPUT_DIR, "11_sensitivity_analysis.png")
+    )
+    print(f"  [11/{N}] 11_sensitivity_analysis.png")
+
     create_summary_dashboard(
         history, model, daily_counts, sim_result, data['los_hours'],
         data['surge_windows'], alpha_0, beta_0, windowed_history=w_history,
-        save_path=os.path.join(OUTPUT_DIR, "10_dashboard.png")
+        sensitivity_histories=sensitivity_histories,
+        save_path=os.path.join(OUTPUT_DIR, "12_dashboard.png")
     )
-    print("  [10/10] 10_dashboard.png")
+    print(f"  [12/{N}] 12_dashboard.png")
     print()
 
 
-def step10_nl_output(model, crowd_result, reports, penalty, data_summary,
-                      alpha_0, beta_0):
-    """Step 10: Generate natural-language outputs and writeup."""
+def step12_nl_output(model, crowd_result, reports, penalty, data_summary,
+                      alpha_0, beta_0, score_result, sensitivity_result):
+    """Step 12: Generate natural-language outputs and comprehensive writeup."""
     print("=" * 70)
-    print("STEP 10: Natural-language outputs")
+    print("STEP 12: Natural-language outputs and writeup")
     print("=" * 70)
 
     prior_mean = alpha_0 / beta_0
@@ -437,7 +502,8 @@ def step10_nl_output(model, crowd_result, reports, penalty, data_summary,
     print()
 
     writeup = generate_writeup_sections(
-        model.belief, prior_mean, crowd_result, reports, data_summary
+        model.belief, prior_mean, crowd_result, reports, data_summary,
+        score_result=score_result, sensitivity_result=sensitivity_result
     )
 
     writeup_path = os.path.join(OUTPUT_DIR, "writeup_sections.txt")
@@ -465,22 +531,42 @@ def main():
         daily_counts, data['surge_windows']
     )
 
-    # Advanced analyses
+    # Advanced Bayesian analyses
     _, w_history = step4_windowed_model(daily_counts, data['surge_windows'])
     _, sensitivity_histories = step5_prior_sensitivity(daily_counts)
-
-    # Predictions
     step6_posterior_predictive(model)
+
+    # Occupancy simulation
     sim_result, crowd_result, los_model = step7_occupancy_simulation(model, data)
+
+    # Recover current_patients for sensitivity analysis
+    snapshot_hour = 36 * 24 + 12
+    current_patients = []
+    for i in range(data['n_patients']):
+        a = data['admission_times_true'][i]
+        d = data['discharge_times_true'][i]
+        if a <= snapshot_hour < d:
+            current_patients.append(d - snapshot_hour)
+    current_patients = np.array(current_patients) if current_patients else np.array([0.0])
 
     # Failure analysis
     reports, penalty = step8_failure_analysis(daily_counts, data)
 
+    # Formal model comparison
+    score_result = step9_model_scoring(model, daily_counts, w_history,
+                                       data['surge_windows'])
+
+    # Sensitivity analysis
+    sensitivity_result = step10_sensitivity(
+        model, los_model, current_patients, w_history, data['capacity']
+    )
+
     # Outputs
-    step9_visualizations(model, daily_counts, sim_result, data,
-                          alpha_0, beta_0, w_history, sensitivity_histories)
-    step10_nl_output(model, crowd_result, reports, penalty, data_summary,
-                      alpha_0, beta_0)
+    step11_visualizations(model, daily_counts, sim_result, data,
+                           alpha_0, beta_0, w_history, sensitivity_histories,
+                           score_result, sensitivity_result)
+    step12_nl_output(model, crowd_result, reports, penalty, data_summary,
+                      alpha_0, beta_0, score_result, sensitivity_result)
 
     print("=" * 70)
     print("PIPELINE COMPLETE")
