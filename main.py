@@ -31,7 +31,8 @@ from src.synthetic_data import SyntheticICUConfig, generate_dataset, summarize_d
 from src.bayesian_model import (
     BayesianArrivalModel, LOSModel, OccupancySimulator, BeliefState,
     WindowedBayesianModel, PriorSensitivityAnalysis, kl_divergence_gamma,
-    ModelComparisonScorer, SensitivityAnalysis
+    ModelComparisonScorer, SensitivityAnalysis,
+    VarianceDecomposition, MLEComparison
 )
 from src.failure_modes import FailureModeAnalyzer, format_failure_report
 from src.nl_interface import (
@@ -44,7 +45,8 @@ from src.visualizations import (
     plot_calibration, plot_occupancy_forecast, plot_los_distribution,
     plot_prior_vs_posterior, plot_model_comparison, plot_prior_sensitivity,
     plot_information_gain, plot_log_score_comparison,
-    plot_sensitivity_analysis, create_summary_dashboard
+    plot_sensitivity_analysis, plot_variance_decomposition,
+    plot_mle_vs_bayesian, create_summary_dashboard
 )
 
 
@@ -398,16 +400,16 @@ def step10_sensitivity(model, los_model, current_patients, w_history, capacity):
     return sensitivity
 
 
-def step11_visualizations(model, daily_counts, sim_result, data,
+def step13_visualizations(model, daily_counts, sim_result, data,
                            alpha_0, beta_0, w_history, sensitivity_histories,
-                           score_result, sensitivity_result):
-    """Step 11: Generate all visualizations (12 figures)."""
+                           score_result, sensitivity_result, decomp, mle_result):
+    """Step 13: Generate all visualizations (14 figures)."""
     print("=" * 70)
-    print("STEP 11: Generating visualizations (12 figures)")
+    print("STEP 13: Generating visualizations (14 figures)")
     print("=" * 70)
 
     history = model.history
-    N = 12
+    N = 14
 
     plot_belief_evolution(
         history, data['surge_windows'],
@@ -475,21 +477,34 @@ def step11_visualizations(model, daily_counts, sim_result, data,
     )
     print(f"  [11/{N}] 11_sensitivity_analysis.png")
 
+    plot_variance_decomposition(
+        decomp, data['surge_windows'],
+        save_path=os.path.join(OUTPUT_DIR, "12_variance_decomposition.png")
+    )
+    print(f"  [12/{N}] 12_variance_decomposition.png")
+
+    plot_mle_vs_bayesian(
+        mle_result, data['surge_windows'],
+        save_path=os.path.join(OUTPUT_DIR, "13_mle_vs_bayesian.png")
+    )
+    print(f"  [13/{N}] 13_mle_vs_bayesian.png")
+
     create_summary_dashboard(
         history, model, daily_counts, sim_result, data['los_hours'],
         data['surge_windows'], alpha_0, beta_0, windowed_history=w_history,
         sensitivity_histories=sensitivity_histories,
-        save_path=os.path.join(OUTPUT_DIR, "12_dashboard.png")
+        save_path=os.path.join(OUTPUT_DIR, "14_dashboard.png")
     )
-    print(f"  [12/{N}] 12_dashboard.png")
+    print(f"  [14/{N}] 14_dashboard.png")
     print()
 
 
-def step12_nl_output(model, crowd_result, reports, penalty, data_summary,
-                      alpha_0, beta_0, score_result, sensitivity_result):
-    """Step 12: Generate natural-language outputs and comprehensive writeup."""
+def step14_nl_output(model, crowd_result, reports, penalty, data_summary,
+                      alpha_0, beta_0, score_result, sensitivity_result,
+                      final_decomp):
+    """Step 14: Generate natural-language outputs and comprehensive writeup."""
     print("=" * 70)
-    print("STEP 12: Natural-language outputs and writeup")
+    print("STEP 14: Natural-language outputs and writeup")
     print("=" * 70)
 
     prior_mean = alpha_0 / beta_0
@@ -503,7 +518,8 @@ def step12_nl_output(model, crowd_result, reports, penalty, data_summary,
 
     writeup = generate_writeup_sections(
         model.belief, prior_mean, crowd_result, reports, data_summary,
-        score_result=score_result, sensitivity_result=sensitivity_result
+        score_result=score_result, sensitivity_result=sensitivity_result,
+        variance_decomp=final_decomp
     )
 
     writeup_path = os.path.join(OUTPUT_DIR, "writeup_sections.txt")
@@ -561,12 +577,46 @@ def main():
         model, los_model, current_patients, w_history, data['capacity']
     )
 
+    # Variance decomposition (law of total variance)
+    print("=" * 70)
+    print("STEP 11: Variance decomposition (law of total variance)")
+    print("=" * 70)
+    decomp = VarianceDecomposition.decompose_over_time(model.history)
+    final_decomp = VarianceDecomposition.decompose_at_belief(model.belief)
+    print(f"  Final prediction variance decomposition (1-day horizon):")
+    print(f"    Stochastic (aleatoric): {final_decomp['stochastic_variance']:.2f} "
+          f"({100*final_decomp['stochastic_fraction']:.1f}%)")
+    print(f"    Parameter  (epistemic): {final_decomp['parameter_variance']:.4f} "
+          f"({100*final_decomp['parameter_fraction']:.1f}%)")
+    print(f"    Total std: {final_decomp['total_std']:.2f}")
+    print(f"  After 180 days, {100*final_decomp['stochastic_fraction']:.0f}% of "
+          "forecast uncertainty is irreducible stochastic noise.")
+    print(f"  More data cannot reduce this — only changing the process itself can.")
+    print()
+
+    # MLE vs Bayesian
+    print("=" * 70)
+    print("STEP 12: MLE vs. Bayesian comparison")
+    print("=" * 70)
+    mle_result = MLEComparison.compare_over_time(daily_counts, alpha_0, beta_0)
+    print(f"  Final MLE:     {mle_result['mle_means'][-1]:.3f} "
+          f"(95% CI: [{mle_result['mle_ci_lo'][-1]:.3f}, "
+          f"{mle_result['mle_ci_hi'][-1]:.3f}])")
+    print(f"  Final Bayes:   {mle_result['bayes_means'][-1]:.3f} "
+          f"(95% CI: [{mle_result['bayes_ci_lo'][-1]:.3f}, "
+          f"{mle_result['bayes_ci_hi'][-1]:.3f}])")
+    print(f"  Day 1 MLE CI width:   {mle_result['mle_ci_hi'][0] - mle_result['mle_ci_lo'][0]:.2f}")
+    print(f"  Day 1 Bayes CI width: {mle_result['bayes_ci_hi'][0] - mle_result['bayes_ci_lo'][0]:.2f}")
+    print(f"  (Bayesian CI is wider early on — more honest with limited data)")
+    print()
+
     # Outputs
-    step11_visualizations(model, daily_counts, sim_result, data,
+    step13_visualizations(model, daily_counts, sim_result, data,
                            alpha_0, beta_0, w_history, sensitivity_histories,
-                           score_result, sensitivity_result)
-    step12_nl_output(model, crowd_result, reports, penalty, data_summary,
-                      alpha_0, beta_0, score_result, sensitivity_result)
+                           score_result, sensitivity_result, decomp, mle_result)
+    step14_nl_output(model, crowd_result, reports, penalty, data_summary,
+                      alpha_0, beta_0, score_result, sensitivity_result,
+                      final_decomp)
 
     print("=" * 70)
     print("PIPELINE COMPLETE")

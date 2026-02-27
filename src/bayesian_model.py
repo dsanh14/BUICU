@@ -684,3 +684,133 @@ class SensitivityAnalysis:
             }
 
         return results
+
+
+class VarianceDecomposition:
+    """
+    Law of Total Variance applied to the posterior predictive.
+
+    This decomposes the total prediction uncertainty into two sources:
+
+        Var[N_future] = E[Var[N|λ]] + Var[E[N|λ]]
+                      = "stochastic"   + "parameter"
+                      = aleatoric      + epistemic
+
+    For our Gamma-Poisson model, both terms have closed-form expressions:
+
+        E[Var[N|λ]]  = Δt · E[λ]        = Δt · α/β
+        Var[E[N|λ]]  = Δt² · Var[λ]     = Δt² · α/β²
+
+    As data accumulates (α grows), parameter uncertainty shrinks but
+    stochastic uncertainty stays constant. Eventually, no amount of
+    additional data can reduce forecast uncertainty — a fundamental
+    insight about the limits of learning.
+
+    This is a direct application of the Law of Total Variance (CS109).
+    """
+
+    @staticmethod
+    def decompose_at_belief(belief: BeliefState,
+                            future_window: float = 1.0) -> dict:
+        """Decompose variance at a single belief state."""
+        alpha, beta = belief.alpha, belief.beta
+        dt = future_window
+
+        stochastic = dt * alpha / beta           # E[Var[N|λ]]
+        parameter = dt ** 2 * alpha / beta ** 2  # Var[E[N|λ]]
+        total = stochastic + parameter
+
+        return {
+            'total_variance': float(total),
+            'stochastic_variance': float(stochastic),
+            'parameter_variance': float(parameter),
+            'stochastic_fraction': float(stochastic / total) if total > 0 else 0,
+            'parameter_fraction': float(parameter / total) if total > 0 else 0,
+            'total_std': float(np.sqrt(total)),
+        }
+
+    @staticmethod
+    def decompose_over_time(history: BeliefHistory,
+                            future_window: float = 1.0) -> dict:
+        """Compute variance decomposition at each time step."""
+        n = len(history.alphas)
+        stochastic = np.zeros(n)
+        parameter = np.zeros(n)
+
+        dt = future_window
+        for t in range(n):
+            alpha, beta = history.alphas[t], history.betas[t]
+            stochastic[t] = dt * alpha / beta
+            parameter[t] = dt ** 2 * alpha / beta ** 2
+
+        total = stochastic + parameter
+        return {
+            'times': np.array(history.times),
+            'total': total,
+            'stochastic': stochastic,
+            'parameter': parameter,
+            'stochastic_frac': stochastic / np.maximum(total, 1e-10),
+            'parameter_frac': parameter / np.maximum(total, 1e-10),
+        }
+
+
+class MLEComparison:
+    """
+    Maximum Likelihood vs. Bayesian estimation comparison.
+
+    MLE for Poisson rate: λ_MLE = Σk / T  (sample mean)
+    Frequentist CI:       λ_MLE ± z_{α/2} · √(λ_MLE / T)  (via CLT)
+
+    Bayesian posterior:   λ | data ~ Gamma(α₀ + Σk, β₀ + T)
+    Bayesian CI:          quantiles of the Gamma posterior
+
+    Key differences demonstrated:
+      1. MLE has no prior — it can produce λ=0 if no arrivals observed
+      2. Bayesian CI is wider (more honest) when data is scarce
+      3. Both converge as T → ∞ (Bernstein-von Mises theorem)
+      4. With small samples, Bayesian regularizes toward the prior
+    """
+
+    @staticmethod
+    def compare_over_time(daily_counts: np.ndarray,
+                          alpha_0: float = 2.0,
+                          beta_0: float = 0.2) -> dict:
+        """
+        Compare MLE and Bayesian estimates at each day.
+        """
+        n = len(daily_counts)
+        mle_means = np.zeros(n)
+        mle_ci_lo = np.zeros(n)
+        mle_ci_hi = np.zeros(n)
+        bayes_means = np.zeros(n)
+        bayes_ci_lo = np.zeros(n)
+        bayes_ci_hi = np.zeros(n)
+
+        cum_k = 0
+        for t in range(n):
+            cum_k += daily_counts[t]
+            T = t + 1
+
+            # MLE
+            lam_mle = cum_k / T
+            se = np.sqrt(lam_mle / T) if lam_mle > 0 else 0
+            mle_means[t] = lam_mle
+            mle_ci_lo[t] = max(0, lam_mle - 1.96 * se)
+            mle_ci_hi[t] = lam_mle + 1.96 * se
+
+            # Bayesian
+            a_post = alpha_0 + cum_k
+            b_post = beta_0 + T
+            bayes_means[t] = a_post / b_post
+            bayes_ci_lo[t] = stats.gamma.ppf(0.025, a=a_post, scale=1.0 / b_post)
+            bayes_ci_hi[t] = stats.gamma.ppf(0.975, a=a_post, scale=1.0 / b_post)
+
+        return {
+            'days': np.arange(1, n + 1),
+            'mle_means': mle_means,
+            'mle_ci_lo': mle_ci_lo,
+            'mle_ci_hi': mle_ci_hi,
+            'bayes_means': bayes_means,
+            'bayes_ci_lo': bayes_ci_lo,
+            'bayes_ci_hi': bayes_ci_hi,
+        }

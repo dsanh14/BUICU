@@ -174,7 +174,8 @@ def generate_writeup_sections(belief: BeliefState, prior_mean: float,
                                failure_reports: List[FailureModeReport],
                                data_summary: str,
                                score_result: Optional[dict] = None,
-                               sensitivity_result: Optional[dict] = None) -> str:
+                               sensitivity_result: Optional[dict] = None,
+                               variance_decomp: Optional[dict] = None) -> str:
     """
     Generate comprehensive structured content for the CS109 writeup.
     Includes all analyses: Bayesian updating, model comparison, prior
