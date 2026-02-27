@@ -78,12 +78,23 @@ def fit_default_models(_daily_counts):
 
 
 @st.cache_data
-def run_failure_modes(_daily_counts, _los_hours, _surge_windows, _capacity):
+def run_failure_modes(_daily_counts, _los_hours, _census_hourly,
+                      _surge_windows, _capacity, _discharges):
     dc = np.array(_daily_counts)
     los = np.array(_los_hours)
-    cfg = SyntheticICUConfig()
-    analyzer = FailureModeAnalyzer(dc, los, cfg)
-    reports, penalty = analyzer.run_all()
+    census = np.array(_census_hourly)
+    dis = np.array(_discharges)
+    missing_frac = float(np.mean(np.isnan(dis)))
+
+    analyzer = FailureModeAnalyzer(_capacity)
+    reports = analyzer.analyze_all(
+        daily_counts=dc,
+        los_hours=los,
+        census_hourly=census,
+        surge_windows=list(_surge_windows),
+        missing_fraction=missing_frac,
+    )
+    penalty = analyzer.combined_confidence_penalty(reports)
     return reports, penalty
 
 
@@ -682,8 +693,8 @@ with tab_eval:
         )
 
         reports, penalty = run_failure_modes(
-            daily_counts, data["los_hours"],
-            config.surge_windows, config.capacity,
+            daily_counts, data["los_hours"], data["census_hourly"],
+            config.surge_windows, config.capacity, data["discharges"],
         )
 
         st.metric("Combined CI Widening Factor", f"\u00d7{penalty:.2f}")
