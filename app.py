@@ -232,6 +232,25 @@ details[data-testid="stExpander"] summary {{
 @keyframes ft {{ 0%,3% {{ opacity:0; }} 5%,22% {{ opacity:1; }} 25%,100% {{ opacity:0; }} }}
 @keyframes fm-float {{ 0%,100% {{ transform:translateY(0); }} 50% {{ transform:translateY(-6px); }} }}
 @keyframes fm-pulse {{ 0% {{ opacity:0.5; transform:scale(1); }} 100% {{ opacity:0; transform:scale(1.6); }} }}
+
+/* ── nuclear override: force ALL text visible ── */
+.stApp *, .stApp *::before, .stApp *::after {{
+    --text-color: {TXT};
+}}
+.stApp p, .stApp span, .stApp div, .stApp label,
+.stApp li, .stApp td, .stApp th, .stApp a,
+.stApp strong, .stApp em, .stApp b, .stApp i,
+.stApp summary, .stApp legend, .stApp dt, .stApp dd {{
+    color: {TXT} !important;
+}}
+.stApp .hero-label, .stApp .b-strip, .stApp .m-note p,
+.stApp .sec-sub, .stApp [data-testid="stMetricLabel"] {{
+    color: {TXT2} !important;
+}}
+.stApp .hero-ci {{ color: {BLUE} !important; }}
+.stApp .hero-num {{ color: {BLUE} !important; }}
+.stApp .fm-bub span {{ color: {TXT2} !important; }}
+.stApp .tip-idx {{ color: {TXT3} !important; }}
 </style>""", unsafe_allow_html=True)
 
 # ── Matplotlib theme ──
