@@ -49,8 +49,27 @@ st.markdown(f"""<style>
 /* reset */
 .stApp {{ background:{BG}; }}
 #MainMenu, footer, header, section[data-testid="stSidebar"] {{ display:none !important; }}
-html,body,[class*="css"] {{ font-family:'DM Sans',sans-serif; color:{TXT}; }}
-h1,h2,h3 {{ font-family:'DM Serif Display',Georgia,serif; font-weight:400; }}
+html, body, [class*="css"],
+.stApp, .stApp p, .stApp span, .stApp div, .stApp label,
+.stMarkdown, .stMarkdown p, .stMarkdown span,
+[data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] span, [data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] strong, [data-testid="stMarkdownContainer"] em {{
+    font-family:'DM Sans',sans-serif !important; color:{TXT} !important;
+}}
+h1,h2,h3 {{ font-family:'DM Serif Display',Georgia,serif !important; font-weight:400; color:{TXT} !important; }}
+h4,h5,h6 {{ color:{TXT} !important; }}
+
+/* force all streamlit text dark */
+.stApp [data-testid="stText"],
+.stApp [data-testid="stCaptionContainer"],
+.stApp [data-testid="stWidgetLabel"] label,
+.stApp [data-testid="stWidgetLabel"] p,
+.stApp [data-testid="stSliderTickBarMin"],
+.stApp [data-testid="stSliderTickBarMax"],
+.stApp [data-testid="stThumbValue"] {{
+    color:{TXT} !important;
+}}
 
 /* ── nav pills ── */
 .nav-bar {{
@@ -113,8 +132,9 @@ h1,h2,h3 {{ font-family:'DM Serif Display',Georgia,serif; font-weight:400; }}
 .m-note p {{ font-size:0.82rem; color:{TXT3}; line-height:1.55; margin:0; }}
 
 /* ── metrics ── */
-[data-testid="stMetricValue"] {{ font-family:'DM Serif Display',Georgia,serif; font-size:1.5rem !important; }}
+[data-testid="stMetricValue"] {{ font-family:'DM Serif Display',Georgia,serif !important; font-size:1.5rem !important; color:{TXT} !important; }}
 [data-testid="stMetricLabel"] {{ font-size:0.8rem !important; color:{TXT3} !important; text-transform:uppercase; letter-spacing:0.04em; }}
+[data-testid="stMetricDelta"] {{ color:{TXT2} !important; }}
 
 /* ── expanders ── */
 details[data-testid="stExpander"] {{
