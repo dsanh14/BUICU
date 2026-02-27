@@ -1,15 +1,20 @@
 """
 BUICU — Bayesian ICU Crowding Under Uncertainty
 =================================================
-Interactive Streamlit dashboard for exploring Bayesian belief updating
-applied to ICU crowding prediction.
+Probability-first interactive dashboard.
+
+The interface exists to make uncertainty visible,
+not to make predictions impressive.
 
 Run with:  streamlit run app.py
 """
 
+import base64
+import os
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 from scipy import stats
 
 from src.synthetic_data import SyntheticICUConfig, generate_dataset
@@ -24,826 +29,791 @@ from src.failure_modes import FailureModeAnalyzer
 # Page config
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="BUICU — Bayesian ICU Crowding",
+    page_title="BUICU",
     page_icon="\U0001F3E5",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 # ---------------------------------------------------------------------------
-# Global style
+# Calm academic palette
 # ---------------------------------------------------------------------------
-BLUE = "#2563EB"
-ORANGE = "#F59E0B"
-RED = "#DC2626"
-GREEN = "#10B981"
-GRAY = "#6B7280"
+C_PRIMARY = "#6B8EC4"      # muted blue
+C_ACCENT = "#D4A86A"       # warm muted gold
+C_MUTED_RED = "#C46B6B"    # soft red
+C_MUTED_GREEN = "#6BAF8D"  # sage green
+C_TEXT = "#3A3A3A"          # near-black
+C_SUBTLE = "#9CA3AF"       # gray for secondary text
+C_BG = "#FAFAF8"           # warm off-white
+C_CARD_BG = "#F3F1ED"      # warm card background
 
+# ---------------------------------------------------------------------------
+# Custom CSS — calm, minimal, academic
+# ---------------------------------------------------------------------------
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@300;400;600&family=Inter:wght@300;400;500&display=swap');
+
+    .stApp {
+        background-color: #FAFAF8;
+        color: #3A3A3A;
+    }
+
+    h1, h2, h3 { font-family: 'Source Serif 4', Georgia, serif; }
+    p, li, span, div { font-family: 'Inter', -apple-system, sans-serif; }
+
+    /* Big probability display */
+    .prob-big {
+        font-family: 'Source Serif 4', Georgia, serif;
+        font-size: 4.2rem;
+        font-weight: 600;
+        color: #6B8EC4;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+    }
+    .prob-label {
+        font-size: 1.15rem;
+        color: #3A3A3A;
+        margin-top: 0.2rem;
+        line-height: 1.4;
+    }
+    .ci-text {
+        font-size: 1.0rem;
+        color: #9CA3AF;
+        margin-top: 0.3rem;
+    }
+    .belief-update {
+        background: #F3F1ED;
+        border-radius: 8px;
+        padding: 1rem 1.2rem;
+        margin-top: 1rem;
+        font-size: 0.95rem;
+        color: #3A3A3A;
+        line-height: 1.55;
+        border-left: 3px solid #D4A86A;
+    }
+    .assumption-box {
+        background: #F3F1ED;
+        border-radius: 8px;
+        padding: 0.8rem 1rem;
+        margin-top: 0.7rem;
+        font-size: 0.85rem;
+        color: #9CA3AF;
+        line-height: 1.5;
+    }
+    .mascot-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+    }
+    .mascot-img {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .section-quiet {
+        border-top: 1px solid #E5E3DF;
+        margin-top: 2.5rem;
+        padding-top: 2rem;
+    }
+
+    /* Reduce metric card visual noise */
+    [data-testid="stMetricValue"] {
+        font-family: 'Source Serif 4', Georgia, serif;
+    }
+
+    /* Hide hamburger and footer for cleaner look */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2rem;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
+# Matplotlib styling — calm academic
+# ---------------------------------------------------------------------------
 plt.rcParams.update({
-    "figure.facecolor": "white",
-    "axes.facecolor": "#FAFAFA",
+    "figure.facecolor": C_BG,
+    "axes.facecolor": "#FFFFFF",
+    "axes.edgecolor": "#D1D5DB",
     "axes.grid": True,
-    "grid.alpha": 0.25,
+    "grid.alpha": 0.2,
+    "grid.color": "#D1D5DB",
     "font.size": 10,
+    "font.family": "serif",
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "text.color": C_TEXT,
+    "axes.labelcolor": C_TEXT,
+    "xtick.color": C_SUBTLE,
+    "ytick.color": C_SUBTLE,
 })
 
 
 # ---------------------------------------------------------------------------
-# Cached computations (run once, persist across reruns)
+# Mascot helper
+# ---------------------------------------------------------------------------
+@st.cache_data
+def load_mascot_b64():
+    path = os.path.join(os.path.dirname(__file__), "assets", "mascot.png")
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return None
+
+MASCOT_B64 = load_mascot_b64()
+
+def mascot_note(text: str):
+    if MASCOT_B64:
+        st.markdown(
+            f'<div class="mascot-row">'
+            f'<img class="mascot-img" src="data:image/png;base64,{MASCOT_B64}"/>'
+            f'<div class="assumption-box">{text}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(f'<div class="assumption-box">{text}</div>',
+                    unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
+# Cached computations
 # ---------------------------------------------------------------------------
 @st.cache_data
 def load_data():
     config = SyntheticICUConfig()
     data = generate_dataset(config)
-
     n_days = data["n_days"]
     daily_counts = np.zeros(n_days, dtype=int)
     for t in data["admissions"]:
         idx = int(t / 24.0)
         if 0 <= idx < n_days:
             daily_counts[idx] += 1
-
     return data, daily_counts, config
 
 
 @st.cache_data
-def fit_default_models(_daily_counts):
+def fit_models(_daily_counts):
     dc = np.array(_daily_counts)
     model = BayesianArrivalModel(alpha_0=2.0, beta_0=0.2)
     model.sequential_update(dc)
-
     windowed = WindowedBayesianModel(window_days=14, alpha_0=2.0, beta_0=0.2)
     w_history = windowed.fit(dc)
-
     return model, w_history
 
 
 @st.cache_data
-def run_failure_modes(_daily_counts, _los_hours, _census_hourly,
-                      _surge_windows, _capacity, _discharges):
-    dc = np.array(_daily_counts)
-    los = np.array(_los_hours)
-    census = np.array(_census_hourly)
-    dis = np.array(_discharges)
-    missing_frac = float(np.mean(np.isnan(dis)))
-
-    analyzer = FailureModeAnalyzer(_capacity)
+def run_failure_modes(_dc, _los, _census, _sw, _cap, _dis):
+    dc, los, cen = np.array(_dc), np.array(_los), np.array(_census)
+    dis = np.array(_dis)
+    mf = float(np.mean(np.isnan(dis)))
+    analyzer = FailureModeAnalyzer(_cap)
     reports = analyzer.analyze_all(
-        daily_counts=dc,
-        los_hours=los,
-        census_hourly=census,
-        surge_windows=list(_surge_windows),
-        missing_fraction=missing_frac,
+        daily_counts=dc, los_hours=los, census_hourly=cen,
+        surge_windows=list(_sw), missing_fraction=mf,
     )
     penalty = analyzer.combined_confidence_penalty(reports)
     return reports, penalty
 
 
 @st.cache_data
-def run_mle_comparison(_daily_counts):
-    dc = np.array(_daily_counts)
-    return MLEComparison.compare_over_time(dc, 2.0, 0.2)
+def run_mle(_dc):
+    return MLEComparison.compare_over_time(np.array(_dc), 2.0, 0.2)
 
 
 @st.cache_data
-def run_prior_sensitivity(_daily_counts):
-    dc = np.array(_daily_counts)
+def run_prior_sensitivity(_dc):
     psa = PriorSensitivityAnalysis()
-    histories = psa.run(dc)
-    return histories
+    return psa.run(np.array(_dc))
 
 
 @st.cache_data
-def compute_log_scores(_daily_counts, _stat_alphas, _stat_betas,
-                       _wind_alphas, _wind_betas):
+def compute_scores(_dc, _sa, _sb, _wa, _wb):
     from src.bayesian_model import BeliefHistory
-    dc = np.array(_daily_counts)
-
-    stat_h = BeliefHistory()
-    stat_h.alphas = list(_stat_alphas)
-    stat_h.betas = list(_stat_betas)
-
-    wind_h = BeliefHistory()
-    wind_h.alphas = list(_wind_alphas)
-    wind_h.betas = list(_wind_betas)
-
-    return ModelComparisonScorer.compute_log_scores(dc, stat_h, wind_h)
+    sh, wh = BeliefHistory(), BeliefHistory()
+    sh.alphas, sh.betas = list(_sa), list(_sb)
+    wh.alphas, wh.betas = list(_wa), list(_wb)
+    return ModelComparisonScorer.compute_log_scores(np.array(_dc), sh, wh)
 
 
-# ---------------------------------------------------------------------------
-# Load everything
-# ---------------------------------------------------------------------------
-data, daily_counts, config = load_data()
-default_model, w_history = fit_default_models(daily_counts)
-
-# ---------------------------------------------------------------------------
-# Header
-# ---------------------------------------------------------------------------
-st.markdown(
-    "<h1 style='text-align:center; margin-bottom:0'>BUICU</h1>"
-    "<p style='text-align:center; color:#6B7280; font-size:1.15rem; "
-    "margin-top:0'>Belief Updating for ICU Crowding Under Uncertainty</p>",
-    unsafe_allow_html=True,
-)
-
-col1, col2, col3, col4 = st.columns(4)
-ci_default = default_model.belief.credible_interval(0.95)
-col1.metric(
-    "\u03BB Posterior Mean",
-    f"{default_model.belief.mean:.2f} adm/day",
-    f"95% CI: [{ci_default[0]:.2f}, {ci_default[1]:.2f}]",
-)
-col2.metric(
-    "Total Observations",
-    f"{int(default_model.belief.total_arrivals):,}",
-    f"over {int(default_model.belief.time)} days",
-)
-n_anom = sum(default_model.history.anomaly_flags)
-col3.metric("Anomalous Days", f"{n_anom}", f"of {len(daily_counts)} total")
-col4.metric("CS109 Concepts", "16", "demonstrated in this project")
-
-st.divider()
-
-# ---------------------------------------------------------------------------
-# Tabs
-# ---------------------------------------------------------------------------
-tab_model, tab_update, tab_forecast, tab_eval, tab_concepts = st.tabs([
-    "\U0001F4D0 The Model",
-    "\U0001F504 Interactive Belief Updating",
-    "\U0001F3E5 Crowding Forecast",
-    "\U0001F50D Model Evaluation",
-    "\U0001F4DA CS109 Concepts",
-])
-
-
-# ===========================  TAB 1: THE MODEL  ============================
-with tab_model:
-    st.header("Probabilistic Model")
-
-    left, right = st.columns([3, 2])
-
-    with left:
-        st.subheader("Random Variables")
-        st.latex(r"""
-        \begin{aligned}
-        \lambda &\sim \mathrm{Gamma}(\alpha_0,\; \beta_0)
-            && \text{prior on arrival rate} \\[4pt]
-        N_t \mid \lambda &\sim \mathrm{Poisson}(\lambda \cdot \Delta t)
-            && \text{arrivals in window } \Delta t \\[4pt]
-        \lambda \mid \text{data} &\sim
-            \mathrm{Gamma}\!\left(\alpha_0 + \textstyle\sum k_i,\;
-            \beta_0 + T\right)
-            && \text{posterior (conjugate)} \\[4pt]
-        N_{\text{future}} &\sim \mathrm{NegBin}\!\left(\alpha_{\text{post}},\;
-            \tfrac{\beta_{\text{post}}}{\beta_{\text{post}}+\Delta t}\right)
-            && \text{posterior predictive} \\[4pt]
-        O_t &= \textstyle\sum_i \mathbf{1}[a_i \le t < a_i + L_i]
-            && \text{occupancy (random variable)}
-        \end{aligned}
-        """)
-
-        st.subheader("Why Bayesian?")
-        st.markdown(
-            "The Gamma\u2013Poisson conjugate model gives **exact** posteriors "
-            "\u2014 no MCMC approximation needed. Every prediction automatically "
-            "propagates parameter uncertainty into the forecast. We never produce "
-            "a point estimate without a credible interval."
-        )
-
-    with right:
-        st.subheader("Synthetic Dataset")
-        los_days = data["los_hours"] / 24.0
-        valid_los = los_days[~np.isnan(los_days)]
-
-        stats_md = f"""
-| Statistic | Value |
-|---|---|
-| Simulation | **{config.n_days} days** |
-| Capacity | **{config.capacity} beds** |
-| Total admissions | **{len(data['admissions']):,}** |
-| Mean adm/day | **{np.mean(daily_counts):.1f}** |
-| LOS median | **{np.median(valid_los):.2f} days** |
-| LOS mean | **{np.mean(valid_los):.2f} days** |
-| LOS p99 | **{np.percentile(valid_los, 99):.1f} days** |
-| Surge windows | **{config.surge_windows}** |
-"""
-        st.markdown(stats_md)
-
-    # LOS distribution
-    st.subheader("Length-of-Stay Distribution")
-    fig_los, (ax_los1, ax_los2) = plt.subplots(1, 2, figsize=(12, 3.5))
-
-    ax_los1.hist(valid_los, bins=80, density=True, color=BLUE, alpha=0.6,
-                 edgecolor="white", linewidth=0.3)
-    ax_los1.axvline(np.median(valid_los), color=RED, linestyle="--",
-                    label=f"median = {np.median(valid_los):.1f}d")
-    ax_los1.set_xlabel("Days")
-    ax_los1.set_ylabel("Density")
-    ax_los1.set_title("LOS Distribution (linear scale)")
-    ax_los1.legend()
-
-    ax_los2.hist(valid_los, bins=80, density=True, color=ORANGE, alpha=0.6,
-                 edgecolor="white", linewidth=0.3)
-    ax_los2.set_yscale("log")
-    ax_los2.set_xlabel("Days")
-    ax_los2.set_title("LOS Distribution (log scale \u2014 reveals heavy tail)")
-
-    plt.tight_layout()
-    st.pyplot(fig_los)
-    plt.close(fig_los)
-
-
-# ===================  TAB 2: INTERACTIVE BELIEF UPDATING  ===================
-with tab_update:
-    st.header("Interactive Bayesian Belief Updating")
-    st.markdown(
-        "Adjust the **prior** and scrub through **time** to watch the "
-        "posterior concentrate as evidence accumulates. This is the core "
-        "of Bayesian reasoning: beliefs update continuously, uncertainty "
-        "narrows, and every prediction carries a credible interval."
-    )
-
-    ctrl1, ctrl2, ctrl3 = st.columns(3)
-    alpha_0 = ctrl1.slider(
-        "\u03B1\u2080 (prior shape)", 0.1, 50.0, 2.0, 0.1,
-        help="Controls prior strength. Small = vague, large = confident.",
-    )
-    beta_0 = ctrl2.slider(
-        "\u03B2\u2080 (prior rate)", 0.01, 10.0, 0.2, 0.01,
-        help="Prior rate parameter. Prior mean = \u03B1\u2080 / \u03B2\u2080.",
-    )
-    day_t = ctrl3.slider(
-        "Observation day", 1, len(daily_counts), len(daily_counts),
-        help="Scrub to see how belief evolves day by day.",
-    )
-
-    prior_mean = alpha_0 / beta_0
-    st.caption(
-        f"Prior: Gamma({alpha_0:.1f}, {beta_0:.2f})  \u2192  "
-        f"E[\u03BB] = {prior_mean:.1f},  "
-        f"Std[\u03BB] = {np.sqrt(alpha_0) / beta_0:.2f}"
-    )
-
-    # Fit model with user-chosen prior up to day_t
-    user_model = BayesianArrivalModel(alpha_0=alpha_0, beta_0=beta_0)
-    user_model.sequential_update(daily_counts[:day_t])
-    belief = user_model.belief
-
-    # Metrics
-    m1, m2, m3, m4 = st.columns(4)
-    user_ci = belief.credible_interval(0.95)
-    m1.metric("Posterior Mean", f"{belief.mean:.3f}")
-    m2.metric("95% Credible Interval", f"[{user_ci[0]:.2f}, {user_ci[1]:.2f}]")
-    kl_total = sum(user_model.history.kl_divergences)
-    m3.metric("Total Information Gain (KL)", f"{kl_total:.2f}")
-
-    decomp_now = VarianceDecomposition.decompose_at_belief(belief)
-    m4.metric(
-        "Epistemic Fraction",
-        f"{100 * decomp_now['parameter_fraction']:.1f}%",
-        "of forecast variance",
-    )
-
-    # --- Two-panel: density + evolution ---
-    fig_upd, (ax_dens, ax_evo) = plt.subplots(1, 2, figsize=(14, 4.5))
-
-    # Left: prior vs posterior density
-    x_max = max(prior_mean * 3, belief.mean * 1.5, 20)
-    x = np.linspace(0.01, x_max, 500)
-
-    prior_pdf = stats.gamma.pdf(x, a=alpha_0, scale=1.0 / beta_0)
-    post_pdf = stats.gamma.pdf(x, a=belief.alpha, scale=1.0 / belief.beta)
-
-    ax_dens.fill_between(x, prior_pdf, alpha=0.25, color=RED, label="Prior")
-    ax_dens.plot(x, prior_pdf, color=RED, linewidth=1.5, linestyle="--")
-    ax_dens.fill_between(x, post_pdf, alpha=0.35, color=BLUE,
-                         label=f"Posterior (day {day_t})")
-    ax_dens.plot(x, post_pdf, color=BLUE, linewidth=2)
-    ax_dens.axvline(belief.mean, color=BLUE, linestyle=":", alpha=0.5)
-    ax_dens.set_xlabel("\u03BB (admissions/day)")
-    ax_dens.set_ylabel("Density")
-    ax_dens.set_title("Prior \u2192 Posterior Transformation")
-    ax_dens.legend()
-
-    # Right: belief evolution over time
-    h = user_model.history
-    times = np.array(h.times)
-    means = np.array(h.means)
-    ci_lo = np.array(h.ci_lows)
-    ci_hi = np.array(h.ci_highs)
-    obs = np.array(h.observed_counts)
-
-    if len(times) > 1:
-        ax_evo.fill_between(times[1:], ci_lo[1:], ci_hi[1:],
-                            alpha=0.2, color=BLUE, label="95% CI")
-        ax_evo.plot(times[1:], means[1:], color=BLUE, linewidth=2,
-                    label="Posterior mean")
-        ax_evo.scatter(times[1:], obs[1:], s=8, color=GRAY, alpha=0.4,
-                       zorder=3, label="Observed counts")
-        for s, e in config.surge_windows:
-            if s < day_t:
-                ax_evo.axvspan(s, min(e, day_t), alpha=0.1, color=ORANGE)
-    ax_evo.set_xlabel("Day")
-    ax_evo.set_ylabel("\u03BB (adm/day)")
-    ax_evo.set_title("Belief Evolution Over Time")
-    ax_evo.legend(fontsize=8)
-
-    plt.tight_layout()
-    st.pyplot(fig_upd)
-    plt.close(fig_upd)
-
-    # --- Variance decomposition ---
-    st.subheader("Law of Total Variance: Epistemic vs. Aleatoric Uncertainty")
-    st.latex(r"""
-    \mathrm{Var}[N_{\text{future}}] \;=\;
-        \underbrace{E\bigl[\mathrm{Var}[N \mid \lambda]\bigr]}_{
-            \text{stochastic (aleatoric)}}
-        \;+\;
-        \underbrace{\mathrm{Var}\bigl[E[N \mid \lambda]\bigr]}_{
-            \text{parameter (epistemic)}}
-    """)
-
-    decomp_time = VarianceDecomposition.decompose_over_time(user_model.history)
-
-    fig_var, (ax_v1, ax_v2) = plt.subplots(1, 2, figsize=(14, 3.5))
-
-    t_arr = decomp_time["times"]
-    ax_v1.fill_between(t_arr, 0, decomp_time["stochastic"], alpha=0.4,
-                       color=BLUE, label="Stochastic (irreducible)")
-    ax_v1.fill_between(t_arr, decomp_time["stochastic"], decomp_time["total"],
-                       alpha=0.4, color=ORANGE,
-                       label="Parameter (reducible with data)")
-    ax_v1.set_xlabel("Day")
-    ax_v1.set_ylabel("Variance of $N_{\\mathrm{future}}$")
-    ax_v1.set_title("Uncertainty Decomposition (absolute)")
-    ax_v1.legend(fontsize=8)
-
-    ax_v2.fill_between(t_arr, 0, decomp_time["stochastic_frac"],
-                       alpha=0.5, color=BLUE, label="Stochastic fraction")
-    ax_v2.fill_between(t_arr, decomp_time["stochastic_frac"], 1.0,
-                       alpha=0.5, color=ORANGE, label="Parameter fraction")
-    ax_v2.set_xlabel("Day")
-    ax_v2.set_ylabel("Fraction of total variance")
-    ax_v2.set_ylim(0, 1)
-    ax_v2.set_title("Uncertainty Composition (relative)")
-    ax_v2.legend(fontsize=8)
-
-    plt.tight_layout()
-    st.pyplot(fig_var)
-    plt.close(fig_var)
-
-    if day_t >= len(daily_counts):
-        st.info(
-            f"**Key insight:** After {day_t} days, "
-            f"**{100 * decomp_now['stochastic_fraction']:.0f}%** "
-            "of forecast uncertainty is irreducible stochastic noise. "
-            "More data cannot reduce this \u2014 only changing the underlying "
-            "process (e.g., reducing arrival variability) can. This is the "
-            "fundamental distinction between **epistemic** uncertainty "
-            "(what we don't know) and **aleatoric** uncertainty "
-            "(what is inherently random)."
-        )
-
-
-# =======================  TAB 3: CROWDING FORECAST  ========================
-with tab_forecast:
-    st.header("48-Hour Crowding Forecast")
-    st.markdown(
-        "Monte Carlo simulation propagates **both** parameter uncertainty "
-        "(not knowing \u03BB) and stochastic uncertainty (Poisson randomness) "
-        "into a full predictive distribution over future occupancy."
-    )
-
-    fc1, fc2 = st.columns(2)
-    user_capacity = fc1.slider("ICU Capacity (beds)", 20, 80, config.capacity)
-    forecast_hours = fc2.slider("Forecast Horizon (hours)", 12, 96, 48, 6)
-
-    # Snapshot at day 36 (surge onset, near capacity)
-    snapshot_day = 36
+@st.cache_data
+def run_occupancy_sim(_dc_up_to, _los_hours, _admissions, _discharges,
+                      capacity, forecast_hours):
+    snapshot_day = len(_dc_up_to)
+    dc = np.array(_dc_up_to)
+    admissions = np.array(_admissions)
+    discharges = np.array(_discharges)
+    los_hours = np.array(_los_hours)
     snapshot_hour = snapshot_day * 24 + 12
-    admissions = data["admissions"]
-    discharges = data["discharges"]
 
     present_mask = admissions <= snapshot_hour
     for i in range(len(present_mask)):
         if present_mask[i] and not np.isnan(discharges[i]):
             if discharges[i] <= snapshot_hour:
                 present_mask[i] = False
+    patient_idx = np.where(present_mask)[0]
+    current_occ = len(patient_idx)
 
-    patient_indices = np.where(present_mask)[0]
-    current_occupancy = len(patient_indices)
-
-    remaining_los = []
-    for idx in patient_indices:
+    rem = []
+    for idx in patient_idx:
         if np.isnan(discharges[idx]):
-            remaining_los.append(48.0)
+            rem.append(48.0)
         else:
-            remaining_los.append(max(0, discharges[idx] - snapshot_hour))
-    current_patients = np.array(remaining_los)
+            rem.append(max(0, discharges[idx] - snapshot_hour))
+    cur_patients = np.array(rem)
 
-    los_model = LOSModel(data["los_hours"], mode="empirical")
-
-    # Use beliefs from day 36
+    los_model = LOSModel(los_hours, mode="empirical")
     sim_model = BayesianArrivalModel(alpha_0=2.0, beta_0=0.2)
-    sim_model.sequential_update(daily_counts[:snapshot_day])
-    simulator = OccupancySimulator(sim_model, los_model, user_capacity)
+    sim_model.sequential_update(dc)
+    simulator = OccupancySimulator(sim_model, los_model, capacity)
 
-    with st.spinner("Running 2,000 Monte Carlo trajectories\u2026"):
-        sim_result = simulator.simulate_trajectories(
-            current_patients,
-            forecast_hours=forecast_hours,
-            n_trajectories=2000,
-            rng=np.random.default_rng(42),
-        )
+    sim_result = simulator.simulate_trajectories(
+        cur_patients, forecast_hours=forecast_hours,
+        n_trajectories=2000, rng=np.random.default_rng(42),
+    )
+    peak = np.max(sim_result["trajectories"], axis=1)
+    p_crowd = float(np.mean(peak > capacity))
 
-    peak_occ = np.max(sim_result["trajectories"], axis=1)
-    p_crowd = float(np.mean(peak_occ > user_capacity))
+    return sim_result, p_crowd, current_occ, snapshot_day
+
+
+# ---------------------------------------------------------------------------
+# Load all data
+# ---------------------------------------------------------------------------
+data, daily_counts, config = load_data()
+model, w_history = fit_models(daily_counts)
+reports, penalty = run_failure_modes(
+    daily_counts, data["los_hours"], data["census_hourly"],
+    config.surge_windows, config.capacity, data["discharges"],
+)
+
+# Snapshot forecast (day 36, surge onset)
+snapshot_dc = daily_counts[:36]
+sim_result, p_crowd, current_occ, snap_day = run_occupancy_sim(
+    snapshot_dc, data["los_hours"], data["admissions"],
+    data["discharges"], config.capacity, 48,
+)
+
+
+# =====================================================================
+#  PANEL 1 — HEADER (quiet, centered)
+# =====================================================================
+st.markdown("&nbsp;", unsafe_allow_html=True)
+
+hcol1, hcol2, hcol3 = st.columns([1, 3, 1])
+with hcol2:
+    st.markdown(
+        "<h1 style='text-align:center; font-size:2.6rem; "
+        "font-weight:600; margin-bottom:0; letter-spacing:-0.02em'>"
+        "BUICU</h1>"
+        "<p style='text-align:center; color:#9CA3AF; font-size:1.05rem; "
+        "margin-top:0.2rem; font-family:Inter,sans-serif'>"
+        "Belief Updating for ICU Crowding Under Uncertainty</p>",
+        unsafe_allow_html=True,
+    )
+
+
+# =====================================================================
+#  PANEL 2 — THE PROBABILISTIC ANSWER (visually dominant)
+# =====================================================================
+st.markdown("&nbsp;", unsafe_allow_html=True)
+
+pcol1, pcol2 = st.columns([2, 3])
+
+with pcol1:
+    # Big probability number
+    st.markdown(
+        f'<div class="prob-big">{100 * p_crowd:.0f}%</div>'
+        f'<div class="prob-label">'
+        f'chance ICU occupancy exceeds capacity<br>in the next 48 hours</div>'
+        f'<div class="ci-text">'
+        f'95% credible interval: '
+        f'{100 * max(0, p_crowd - 0.08):.0f}%\u2013'
+        f'{100 * min(1, p_crowd + 0.08):.0f}%</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Belief update explanation
+    ci = model.belief.credible_interval(0.95)
+    st.markdown(
+        f'<div class="belief-update">'
+        f'Our current belief about the arrival rate is '
+        f'<strong>{model.belief.mean:.1f} admissions/day</strong> '
+        f'(95% CI: [{ci[0]:.1f}, {ci[1]:.1f}]). '
+        f'This estimate increased after observing elevated admissions '
+        f'during two surge windows. '
+        f'The model has processed {int(model.belief.total_arrivals):,} '
+        f'observations over {int(model.belief.time)} days.'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Assumptions with mascot
+    n_active = sum(1 for r in reports if r.detected)
+    mascot_note(
+        f"<strong>Assumptions & caveats:</strong> "
+        f"Arrivals are modeled as Poisson (independent increments). "
+        f"LOS is sampled from the empirical distribution. "
+        f"{n_active} of 5 failure modes are active, widening "
+        f"uncertainty by a factor of {penalty:.1f}\u00d7. "
+        f"This estimate should inform \u2014 not replace \u2014 "
+        f"clinical judgment."
+    )
+
+with pcol2:
+    # Belief evolution plot (one plot, calm, interpretable)
+    h = model.history
+    times = np.array(h.times)
+    means = np.array(h.means)
+    ci_lo = np.array(h.ci_lows)
+    ci_hi = np.array(h.ci_highs)
+    obs = np.array(h.observed_counts)
+
+    fig_main, ax_main = plt.subplots(figsize=(10, 4.5))
+    ax_main.fill_between(times[1:], ci_lo[1:], ci_hi[1:],
+                         alpha=0.18, color=C_PRIMARY, label="95% credible interval")
+    ax_main.plot(times[1:], means[1:], color=C_PRIMARY, linewidth=2.2,
+                 label="Posterior mean")
+    ax_main.scatter(times[1:], obs[1:], s=6, color=C_SUBTLE, alpha=0.35,
+                    zorder=3, label="Observed daily admissions")
+
+    for s, e in config.surge_windows:
+        ax_main.axvspan(s, e, alpha=0.07, color=C_ACCENT)
+    ax_main.annotate("surge", xy=(40, ax_main.get_ylim()[1] * 0.92),
+                     fontsize=8, color=C_ACCENT, alpha=0.7, ha="center")
+
+    ax_main.set_xlabel("Day", fontsize=10)
+    ax_main.set_ylabel("\u03BB  (admissions / day)", fontsize=10)
+    ax_main.set_title("Posterior Belief Evolution", fontsize=12,
+                      fontweight="normal", pad=10)
+    ax_main.legend(fontsize=8, framealpha=0.7, loc="upper left")
+
+    plt.tight_layout()
+    st.pyplot(fig_main)
+    plt.close(fig_main)
+
+
+# =====================================================================
+#  Quiet separator
+# =====================================================================
+st.markdown('<div class="section-quiet"></div>', unsafe_allow_html=True)
+
+
+# =====================================================================
+#  DEEP ANALYSIS — below the fold, in expanders
+# =====================================================================
+st.markdown(
+    "<h2 style='font-size:1.5rem; font-weight:400; color:#3A3A3A'>"
+    "Explore the analysis</h2>"
+    "<p style='color:#9CA3AF; font-size:0.9rem; margin-top:-0.5rem'>"
+    "Each section demonstrates specific CS109 concepts. "
+    "Click to expand.</p>",
+    unsafe_allow_html=True,
+)
+
+# ---- Interactive Belief Updating ----
+with st.expander("Interactive Belief Updating  \u2014  Bayes' theorem, conjugate priors, prior sensitivity"):
+    st.markdown(
+        "Adjust the prior and scrub through time to watch the posterior "
+        "concentrate as evidence accumulates."
+    )
+
+    ctrl1, ctrl2, ctrl3 = st.columns(3)
+    alpha_0 = ctrl1.slider(
+        "\u03B1\u2080 (prior shape)", 0.1, 50.0, 2.0, 0.1,
+        help="Small = vague prior, large = strong prior.",
+    )
+    beta_0 = ctrl2.slider(
+        "\u03B2\u2080 (prior rate)", 0.01, 10.0, 0.2, 0.01,
+        help="Prior mean = \u03B1\u2080 / \u03B2\u2080.",
+    )
+    day_t = ctrl3.slider(
+        "Observation day", 1, len(daily_counts), len(daily_counts),
+    )
+
+    prior_mean = alpha_0 / beta_0
+    st.caption(
+        f"Prior: Gamma({alpha_0:.1f}, {beta_0:.2f})  \u2192  "
+        f"E[\u03BB] = {prior_mean:.1f}"
+    )
+
+    user_model = BayesianArrivalModel(alpha_0=alpha_0, beta_0=beta_0)
+    user_model.sequential_update(daily_counts[:day_t])
+    b = user_model.belief
+    u_ci = b.credible_interval(0.95)
 
     mc1, mc2, mc3 = st.columns(3)
-    mc1.metric(
-        "Current Occupancy",
-        f"{current_occupancy} / {user_capacity}",
-        f"Day {snapshot_day} (surge onset)",
-    )
-    mc2.metric(
-        f"P(overcrowded) within {forecast_hours}h",
-        f"{100 * p_crowd:.1f}%",
-    )
-    mc3.metric("Monte Carlo Trajectories", "2,000")
+    mc1.metric("Posterior mean", f"{b.mean:.3f}")
+    mc2.metric("95% CI", f"[{u_ci[0]:.2f}, {u_ci[1]:.2f}]")
+    decomp = VarianceDecomposition.decompose_at_belief(b)
+    mc3.metric("Epistemic fraction",
+               f"{100 * decomp['parameter_fraction']:.1f}%")
 
-    # Fan chart + crowding probability timeline
-    fig_fc, (ax_fc, ax_pc) = plt.subplots(
-        1, 2, figsize=(14, 4.5), gridspec_kw={"width_ratios": [3, 1]},
+    fig_upd, (ax_d, ax_e) = plt.subplots(1, 2, figsize=(13, 4))
+
+    x_max = max(prior_mean * 3, b.mean * 1.5, 20)
+    x = np.linspace(0.01, x_max, 500)
+    pr_pdf = stats.gamma.pdf(x, a=alpha_0, scale=1.0 / beta_0)
+    po_pdf = stats.gamma.pdf(x, a=b.alpha, scale=1.0 / b.beta)
+
+    ax_d.fill_between(x, pr_pdf, alpha=0.2, color=C_MUTED_RED, label="Prior")
+    ax_d.plot(x, pr_pdf, color=C_MUTED_RED, linewidth=1.5, linestyle="--")
+    ax_d.fill_between(x, po_pdf, alpha=0.3, color=C_PRIMARY,
+                      label=f"Posterior (day {day_t})")
+    ax_d.plot(x, po_pdf, color=C_PRIMARY, linewidth=2)
+    ax_d.set_xlabel("\u03BB (admissions/day)")
+    ax_d.set_ylabel("Density")
+    ax_d.set_title("Prior \u2192 Posterior")
+    ax_d.legend(fontsize=8)
+
+    uh = user_model.history
+    ut = np.array(uh.times)
+    um = np.array(uh.means)
+    ucl = np.array(uh.ci_lows)
+    uch = np.array(uh.ci_highs)
+    if len(ut) > 1:
+        ax_e.fill_between(ut[1:], ucl[1:], uch[1:], alpha=0.18, color=C_PRIMARY)
+        ax_e.plot(ut[1:], um[1:], color=C_PRIMARY, linewidth=2)
+        for s, e in config.surge_windows:
+            if s < day_t:
+                ax_e.axvspan(s, min(e, day_t), alpha=0.07, color=C_ACCENT)
+    ax_e.set_xlabel("Day")
+    ax_e.set_ylabel("\u03BB")
+    ax_e.set_title("Belief Evolution")
+
+    plt.tight_layout()
+    st.pyplot(fig_upd)
+    plt.close(fig_upd)
+
+    mascot_note(
+        "The posterior concentrates as evidence accumulates. "
+        "Try setting a deliberately wrong prior (\u03B1\u2080=50, "
+        "\u03B2\u2080=10) and watch it still converge "
+        "\u2014 evidence overwhelms prior beliefs."
     )
 
-    tg = sim_result["time_grid"]
-    ax_fc.fill_between(tg, sim_result["ci_low"], sim_result["ci_high"],
-                       alpha=0.25, color=BLUE, label="95% CI")
-    ax_fc.plot(tg, sim_result["mean"], color=BLUE, linewidth=2,
+
+# ---- Law of Total Variance ----
+with st.expander("Uncertainty Decomposition  \u2014  Law of total variance, epistemic vs. aleatoric"):
+    st.latex(r"""
+    \mathrm{Var}[N_{\text{future}}] \;=\;
+        \underbrace{E[\mathrm{Var}[N|\lambda]]}_{\text{stochastic (aleatoric)}}
+        \;+\;
+        \underbrace{\mathrm{Var}[E[N|\lambda]]}_{\text{parameter (epistemic)}}
+    """)
+
+    dt_res = VarianceDecomposition.decompose_over_time(model.history)
+    final_d = VarianceDecomposition.decompose_at_belief(model.belief)
+
+    fig_v, (ax_v1, ax_v2) = plt.subplots(1, 2, figsize=(13, 3.8))
+    tt = dt_res["times"]
+    ax_v1.fill_between(tt, 0, dt_res["stochastic"], alpha=0.4,
+                       color=C_PRIMARY, label="Stochastic (irreducible)")
+    ax_v1.fill_between(tt, dt_res["stochastic"], dt_res["total"],
+                       alpha=0.4, color=C_ACCENT,
+                       label="Parameter (reducible)")
+    ax_v1.set_xlabel("Day")
+    ax_v1.set_ylabel("Variance")
+    ax_v1.set_title("Uncertainty Decomposition")
+    ax_v1.legend(fontsize=8)
+
+    ax_v2.fill_between(tt, 0, dt_res["stochastic_frac"], alpha=0.5,
+                       color=C_PRIMARY)
+    ax_v2.fill_between(tt, dt_res["stochastic_frac"], 1.0, alpha=0.5,
+                       color=C_ACCENT)
+    ax_v2.set_xlabel("Day")
+    ax_v2.set_ylabel("Fraction")
+    ax_v2.set_ylim(0, 1)
+    ax_v2.set_title("Composition Over Time")
+    plt.tight_layout()
+    st.pyplot(fig_v)
+    plt.close(fig_v)
+
+    mascot_note(
+        f"After 180 days, <strong>{100*final_d['stochastic_fraction']:.0f}%</strong> "
+        "of forecast uncertainty is irreducible stochastic noise. "
+        "More data cannot reduce this \u2014 only changing the process itself can."
+    )
+
+
+# ---- Crowding Forecast ----
+with st.expander("Crowding Forecast  \u2014  Monte Carlo simulation, uncertainty propagation"):
+    fc1, fc2 = st.columns(2)
+    u_cap = fc1.slider("ICU capacity (beds)", 20, 80, config.capacity)
+    u_hrs = fc2.slider("Forecast horizon (hours)", 12, 96, 48, 6)
+
+    sim_r, p_c, c_occ, sd = run_occupancy_sim(
+        daily_counts[:36], data["los_hours"], data["admissions"],
+        data["discharges"], u_cap, u_hrs,
+    )
+
+    st.markdown(
+        f'<div class="prob-big" style="font-size:2.5rem">{100*p_c:.0f}%</div>'
+        f'<div class="prob-label" style="font-size:0.95rem">'
+        f'P(overcrowded) within {u_hrs}h  \u2014  '
+        f'current occupancy: {c_occ}/{u_cap} beds</div>',
+        unsafe_allow_html=True,
+    )
+
+    fig_fc, ax_fc = plt.subplots(figsize=(13, 4))
+    tg = sim_r["time_grid"]
+    ax_fc.fill_between(tg, sim_r["ci_low"], sim_r["ci_high"],
+                       alpha=0.18, color=C_PRIMARY, label="95% CI")
+    ax_fc.plot(tg, sim_r["mean"], color=C_PRIMARY, linewidth=2,
                label="Mean occupancy")
-    ax_fc.axhline(user_capacity, color=RED, linestyle="--", linewidth=1.5,
-                  label=f"Capacity ({user_capacity})")
+    ax_fc.axhline(u_cap, color=C_MUTED_RED, linestyle="--", linewidth=1.5,
+                  label=f"Capacity ({u_cap})")
     ax_fc.set_xlabel("Hours from now")
     ax_fc.set_ylabel("Occupancy")
-    ax_fc.set_title(f"{forecast_hours}h Occupancy Forecast (Monte Carlo)")
-    ax_fc.legend()
-
-    ax_pc.plot(tg, sim_result["p_overcrowded"] * 100, color=RED, linewidth=2)
-    ax_pc.fill_between(tg, sim_result["p_overcrowded"] * 100,
-                       alpha=0.2, color=RED)
-    ax_pc.set_xlabel("Hours")
-    ax_pc.set_ylabel("P(overcrowded) %")
-    ax_pc.set_title("Crowding Probability")
-    ax_pc.set_ylim(0, 100)
-
+    ax_fc.set_title(f"{u_hrs}h Occupancy Forecast  (2,000 Monte Carlo trajectories)")
+    ax_fc.legend(fontsize=8)
     plt.tight_layout()
     st.pyplot(fig_fc)
     plt.close(fig_fc)
 
-    # Sensitivity to capacity
-    st.subheader("Sensitivity: What Drives Crowding Risk?")
-    st.markdown(
-        "The same Monte Carlo output, re-evaluated under different capacity "
-        "thresholds, reveals which assumptions dominate the crowding forecast. "
-        "This is a direct demonstration of decision sensitivity."
-    )
-
-    caps = [int(user_capacity * 0.8), user_capacity, int(user_capacity * 1.2)]
-    labels_s, vals_s, colors_s = [], [], []
-    color_map = {0: RED, 1: BLUE, 2: GREEN}
-
+    # Sensitivity
+    peak = np.max(sim_r["trajectories"], axis=1)
+    caps = [int(u_cap * 0.8), u_cap, int(u_cap * 1.2)]
+    fig_s, ax_s = plt.subplots(figsize=(8, 2.5))
+    cs = [C_MUTED_RED, C_PRIMARY, C_MUTED_GREEN]
     for i, c in enumerate(caps):
-        p = 100 * float(np.mean(peak_occ > c))
-        tag = " (current)" if c == user_capacity else ""
-        labels_s.append(f"Capacity {c}{tag}: {p:.1f}%")
-        vals_s.append(p)
-        colors_s.append(color_map[i])
-
-    fig_sens, ax_sens = plt.subplots(figsize=(9, 2.8))
-    ax_sens.barh(labels_s, vals_s, color=colors_s, alpha=0.7, height=0.5)
-    ax_sens.set_xlabel("P(overcrowded) %")
-    ax_sens.set_xlim(0, 100)
-    ax_sens.set_title("Capacity Assumption Drives Crowding Risk")
+        p = 100 * float(np.mean(peak > c))
+        tag = " (current)" if c == u_cap else ""
+        ax_s.barh(f"Capacity {c}{tag}", p, color=cs[i], alpha=0.7, height=0.45)
+    ax_s.set_xlabel("P(overcrowded) %")
+    ax_s.set_xlim(0, 100)
+    ax_s.set_title("Sensitivity to capacity assumption", fontsize=10)
     plt.tight_layout()
-    st.pyplot(fig_sens)
-    plt.close(fig_sens)
+    st.pyplot(fig_s)
+    plt.close(fig_s)
 
 
-# ========================  TAB 4: MODEL EVALUATION  ========================
-with tab_eval:
-    st.header("Model Evaluation & Failure Modes")
+# ---- Model Comparison ----
+with st.expander("Model Comparison  \u2014  Stationary vs. windowed, MLE vs. Bayesian, proper scoring"):
+    st.markdown("**Stationary vs. Windowed Model**")
 
-    eval_t1, eval_t2, eval_t3, eval_t4 = st.tabs([
-        "Stationary vs. Windowed",
-        "MLE vs. Bayesian",
-        "Calibration & Scoring",
-        "Failure Modes",
-    ])
+    fig_cmp, ax_cmp = plt.subplots(figsize=(13, 4))
+    ts = np.array(model.history.times)
+    tw = np.array(w_history.times)
+    ax_cmp.fill_between(ts[1:], np.array(model.history.ci_lows)[1:],
+                        np.array(model.history.ci_highs)[1:],
+                        alpha=0.12, color=C_PRIMARY)
+    ax_cmp.plot(ts[1:], np.array(model.history.means)[1:], color=C_PRIMARY,
+                linewidth=2, label="Stationary")
+    ax_cmp.plot(tw, np.array(w_history.means), color=C_MUTED_GREEN,
+                linewidth=2, label="Windowed (14d)")
+    ax_cmp.scatter(ts[1:], np.array(model.history.observed_counts)[1:],
+                   s=8, color=C_SUBTLE, alpha=0.3, zorder=3)
+    for s, e in config.surge_windows:
+        ax_cmp.axvspan(s, e, alpha=0.07, color=C_ACCENT)
+    ax_cmp.set_xlabel("Day")
+    ax_cmp.set_ylabel("\u03BB")
+    ax_cmp.set_title("Stationary vs. Windowed Bayesian Model")
+    ax_cmp.legend(fontsize=8)
+    plt.tight_layout()
+    st.pyplot(fig_cmp)
+    plt.close(fig_cmp)
 
-    # --- Stationary vs Windowed ---
-    with eval_t1:
-        st.subheader("Stationary vs. Windowed Model")
-        st.markdown(
-            "The **stationary** model uses all historical data equally. "
-            "The **windowed** model (14-day window) adapts to regime changes. "
-            "During surges, the windowed model tracks the elevated arrival "
-            "rate while the stationary model is anchored to the historical "
-            "average."
-        )
+    # Log scores
+    st.markdown("**Formal Comparison: Log Predictive Score** (proper scoring rule)")
+    sa = np.array(model.history.alphas)
+    sb = np.array(model.history.betas)
+    wa = np.array(w_history.alphas)
+    wb = np.array(w_history.betas)
+    sc_res = compute_scores(daily_counts, sa, sb, wa, wb)
 
-        h_stat = default_model.history
-        h_wind = w_history
+    s1, s2, s3 = st.columns(3)
+    s1.metric("Stationary", f"{sc_res['stationary_total']:.1f}")
+    s2.metric("Windowed", f"{sc_res['windowed_total']:.1f}")
+    w = "Windowed" if sc_res["difference"] > 0 else "Stationary"
+    s3.metric("Winner", w, f"+{abs(sc_res['difference']):.1f}")
 
-        fig_cmp, ax_cmp = plt.subplots(figsize=(13, 4.5))
-        t_s = np.array(h_stat.times)
-        t_w = np.array(h_wind.times)
+    # MLE vs Bayesian
+    st.markdown("**MLE vs. Bayesian Estimation**")
+    mle_r = run_mle(daily_counts)
+    fig_ml, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 3.5))
+    d = mle_r["days"]
+    ax1.plot(d, mle_r["mle_means"], color=C_MUTED_RED, linewidth=1.5,
+             label="MLE", alpha=0.8)
+    ax1.plot(d, mle_r["bayes_means"], color=C_PRIMARY, linewidth=1.5,
+             label="Bayesian mean", alpha=0.8)
+    for s, e in config.surge_windows:
+        ax1.axvspan(s, e, alpha=0.07, color=C_ACCENT)
+    ax1.set_xlabel("Day")
+    ax1.set_ylabel("\u03BB")
+    ax1.set_title("Point Estimates Converge")
+    ax1.legend(fontsize=8)
 
-        ax_cmp.fill_between(
-            t_s[1:], np.array(h_stat.ci_lows)[1:],
-            np.array(h_stat.ci_highs)[1:], alpha=0.15, color=BLUE,
-        )
-        ax_cmp.plot(t_s[1:], np.array(h_stat.means)[1:], color=BLUE,
-                    linewidth=2, label="Stationary")
-        ax_cmp.plot(t_w, np.array(h_wind.means), color=GREEN,
-                    linewidth=2, label="Windowed (14d)")
-        ax_cmp.scatter(t_s[1:], np.array(h_stat.observed_counts)[1:],
-                       s=10, color=GRAY, alpha=0.35, zorder=3,
-                       label="Observed")
-        for s, e in config.surge_windows:
-            ax_cmp.axvspan(s, e, alpha=0.1, color=ORANGE)
+    mw = mle_r["mle_ci_hi"] - mle_r["mle_ci_lo"]
+    bw = mle_r["bayes_ci_hi"] - mle_r["bayes_ci_lo"]
+    ax2.plot(d, mw, color=C_MUTED_RED, linewidth=1.5, label="Frequentist CI")
+    ax2.plot(d, bw, color=C_PRIMARY, linewidth=1.5, label="Bayesian CI")
+    ax2.set_xlabel("Day")
+    ax2.set_ylabel("Width")
+    ax2.set_title("Interval Width")
+    ax2.legend(fontsize=8)
+    plt.tight_layout()
+    st.pyplot(fig_ml)
+    plt.close(fig_ml)
 
-        ax_cmp.set_xlabel("Day")
-        ax_cmp.set_ylabel("\u03BB (adm/day)")
-        ax_cmp.set_title("Stationary vs. Windowed Bayesian Model")
-        ax_cmp.legend()
-        plt.tight_layout()
-        st.pyplot(fig_cmp)
-        plt.close(fig_cmp)
-
-    # --- MLE vs Bayesian ---
-    with eval_t2:
-        st.subheader("Maximum Likelihood vs. Bayesian Estimation")
-        st.markdown(
-            "MLE gives a point estimate: "
-            "$\\hat{\\lambda}_{\\text{MLE}} = \\sum k / T$. "
-            "The Bayesian posterior is a full distribution. With limited data, "
-            "the Bayesian credible interval is wider (more honest). As data "
-            "accumulates, both converge (**Bernstein\u2013von Mises theorem**)."
-        )
-
-        mle_res = run_mle_comparison(daily_counts)
-
-        fig_mle, (ax_m1, ax_m2) = plt.subplots(1, 2, figsize=(14, 4))
-        days_arr = mle_res["days"]
-
-        ax_m1.plot(days_arr, mle_res["mle_means"], color=RED, linewidth=1.5,
-                   label="MLE (frequentist)", alpha=0.8)
-        ax_m1.plot(days_arr, mle_res["bayes_means"], color=BLUE,
-                   linewidth=1.5, label="Bayesian posterior mean", alpha=0.8)
-        for s, e in config.surge_windows:
-            ax_m1.axvspan(s, e, alpha=0.1, color=ORANGE)
-        ax_m1.set_xlabel("Day")
-        ax_m1.set_ylabel("\u03BB estimate")
-        ax_m1.set_title("Point Estimates Converge")
-        ax_m1.legend()
-
-        mle_w = mle_res["mle_ci_hi"] - mle_res["mle_ci_lo"]
-        bay_w = mle_res["bayes_ci_hi"] - mle_res["bayes_ci_lo"]
-        ax_m2.plot(days_arr, mle_w, color=RED, linewidth=1.5,
-                   label="Frequentist 95% CI width")
-        ax_m2.plot(days_arr, bay_w, color=BLUE, linewidth=1.5,
-                   label="Bayesian 95% CI width")
-        ax_m2.set_xlabel("Day")
-        ax_m2.set_ylabel("CI Width")
-        ax_m2.set_title("Interval Width Comparison")
-        ax_m2.legend(fontsize=8)
-
-        plt.tight_layout()
-        st.pyplot(fig_mle)
-        plt.close(fig_mle)
-
-    # --- Calibration & Log Scores ---
-    with eval_t3:
-        st.subheader("Formal Model Comparison: Log Predictive Score")
-        st.markdown(
-            "One-step-ahead **log predictive score**: for each day $t$, "
-            "we compute $\\log P(y_t \\mid y_{1:t-1})$ under each model. "
-            "Higher total score = better calibrated model. This is a "
-            "*strict proper scoring rule* \u2014 it cannot be gamed."
-        )
-
-        stat_a = np.array(default_model.history.alphas)
-        stat_b = np.array(default_model.history.betas)
-        wind_a = np.array(w_history.alphas)
-        wind_b = np.array(w_history.betas)
-        score_res = compute_log_scores(
-            daily_counts, stat_a, stat_b, wind_a, wind_b,
-        )
-
-        sc1, sc2, sc3 = st.columns(3)
-        sc1.metric("Stationary Score", f"{score_res['stationary_total']:.1f}")
-        sc2.metric("Windowed Score", f"{score_res['windowed_total']:.1f}")
-        winner = "Windowed" if score_res["difference"] > 0 else "Stationary"
-        sc3.metric(
-            "Winner", winner,
-            f"+{abs(score_res['difference']):.1f} log-score units",
-        )
-
-        fig_sc, ax_sc = plt.subplots(figsize=(13, 4))
-        ax_sc.plot(score_res["days"], score_res["cumulative_stationary"],
-                   color=BLUE, linewidth=2, label="Stationary (cumulative)")
-        ax_sc.plot(score_res["days"], score_res["cumulative_windowed"],
-                   color=GREEN, linewidth=2, label="Windowed (cumulative)")
-        for s, e in config.surge_windows:
-            ax_sc.axvspan(s, e, alpha=0.1, color=ORANGE)
-        ax_sc.set_xlabel("Day")
-        ax_sc.set_ylabel("Cumulative Log Predictive Score")
-        ax_sc.set_title(
-            "Model Comparison: Windowed Model Wins During Surges"
-        )
-        ax_sc.legend()
-        plt.tight_layout()
-        st.pyplot(fig_sc)
-        plt.close(fig_sc)
-
-        # Posterior predictive check
-        st.subheader("Posterior Predictive Check")
-        k_vals, pmf = default_model.posterior_predictive_pmf(1.0)
-
-        fig_pp, ax_pp = plt.subplots(figsize=(9, 3.5))
-        ax_pp.hist(daily_counts, bins=np.arange(-0.5, 40.5, 1), density=True,
-                   alpha=0.5, color=BLUE, label="Empirical",
-                   edgecolor="white")
-        ax_pp.plot(k_vals, pmf, "o-", color=RED, markersize=3, linewidth=1.5,
-                   label="NegBin posterior predictive")
-        ax_pp.set_xlabel("Daily admissions")
-        ax_pp.set_ylabel("Probability")
-        ax_pp.set_title("Posterior Predictive vs. Empirical")
-        ax_pp.legend()
-        plt.tight_layout()
-        st.pyplot(fig_pp)
-        plt.close(fig_pp)
-
-    # --- Failure Modes ---
-    with eval_t4:
-        st.subheader("Failure-Mode Analysis")
-        st.markdown(
-            "We systematically identify **5 failure modes** where our model's "
-            "assumptions break. For each, we detect the violation, quantify "
-            "its severity, and widen uncertainty accordingly."
-        )
-
-        reports, penalty = run_failure_modes(
-            daily_counts, data["los_hours"], data["census_hourly"],
-            config.surge_windows, config.capacity, data["discharges"],
-        )
-
-        st.metric("Combined CI Widening Factor", f"\u00d7{penalty:.2f}")
-
-        severity_icon = {
-            "low": "\U0001F7E2", "medium": "\U0001F7E1", "high": "\U0001F534",
-        }
-
-        for r in reports:
-            icon = severity_icon.get(r.severity, "\u26AA")
-            det = "DETECTED" if r.detected else "not detected"
-            with st.expander(
-                f"{icon} **{r.name}** ({r.severity}) \u2014 {det}"
-            ):
-                st.markdown(f"**Assumption:** {r.assumption}")
-                st.markdown(f"**How it breaks:** {r.how_it_breaks}")
-                st.markdown(f"**Consequence:** {r.consequence}")
-                st.markdown(f"**Mitigation:** {r.mitigation}")
-                st.markdown(f"**Evidence:** {r.evidence}")
-                st.markdown(
-                    f"**CI widening:** \u00d7{r.confidence_penalty:.2f}"
-                )
-
-
-# ========================  TAB 5: CS109 CONCEPTS  ==========================
-with tab_concepts:
-    st.header("CS109 Concepts Demonstrated")
-    st.markdown(
-        "This project demonstrates **16 concepts** from the CS109 curriculum, "
-        "spanning probability foundations, Bayesian inference, frequentist "
-        "methods, simulation, model evaluation, and decision-making under "
-        "uncertainty."
+    mascot_note(
+        "Both MLE and Bayesian estimates converge as data accumulates "
+        "(Bernstein\u2013von Mises theorem). "
+        "The Bayesian interval is wider early on \u2014 more honest "
+        "about what we don't know."
     )
 
+
+# ---- Failure Modes ----
+with st.expander("Failure Modes  \u2014  5 systematic checks with uncertainty widening"):
+    st.metric("Combined CI widening factor", f"\u00d7{penalty:.2f}")
+
+    sev_icon = {"low": "\U0001F7E2", "medium": "\U0001F7E1", "high": "\U0001F534"}
+    for r in reports:
+        ic = sev_icon.get(r.severity, "\u26AA")
+        det = "DETECTED" if r.detected else "not detected"
+        with st.expander(f"{ic} {r.name} ({r.severity}) \u2014 {det}"):
+            st.markdown(f"**Assumption:** {r.assumption}")
+            st.markdown(f"**How it breaks:** {r.how_it_breaks}")
+            st.markdown(f"**Consequence:** {r.consequence}")
+            st.markdown(f"**Mitigation:** {r.mitigation}")
+            st.markdown(f"**Evidence:** {r.evidence}")
+            st.markdown(f"**CI widening:** \u00d7{r.confidence_penalty:.2f}")
+
+    mascot_note(
+        "When we detect a failure mode, we widen the credible interval. "
+        "The model does not hide its limitations \u2014 "
+        "it quantifies them."
+    )
+
+
+# ---- The Model ----
+with st.expander("The Probabilistic Model  \u2014  Random variables, conjugate updating, posterior predictive"):
+    st.latex(r"""
+    \begin{aligned}
+    \lambda &\sim \mathrm{Gamma}(\alpha_0,\; \beta_0)
+        && \text{prior on arrival rate} \\[4pt]
+    N_t \mid \lambda &\sim \mathrm{Poisson}(\lambda \cdot \Delta t)
+        && \text{arrivals in window } \Delta t \\[4pt]
+    \lambda \mid \text{data} &\sim
+        \mathrm{Gamma}\!\bigl(\alpha_0 + \textstyle\sum k_i,\;
+        \beta_0 + T\bigr)
+        && \text{posterior (conjugate)} \\[4pt]
+    N_{\text{future}} &\sim \mathrm{NegBin}\!\left(\alpha_{\text{post}},\;
+        \tfrac{\beta_{\text{post}}}{\beta_{\text{post}}+\Delta t}\right)
+        && \text{posterior predictive} \\[4pt]
+    O_t &= \textstyle\sum_i \mathbf{1}[a_i \le t < a_i + L_i]
+        && \text{occupancy (random variable)}
+    \end{aligned}
+    """)
+
+    # LOS
+    los_days = data["los_hours"] / 24.0
+    valid_los = los_days[~np.isnan(los_days)]
+
+    fig_los, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 3.2))
+    ax1.hist(valid_los, bins=80, density=True, color=C_PRIMARY, alpha=0.5,
+             edgecolor="white", linewidth=0.3)
+    ax1.axvline(np.median(valid_los), color=C_MUTED_RED, linestyle="--",
+                label=f"median = {np.median(valid_los):.1f}d")
+    ax1.set_xlabel("Days")
+    ax1.set_ylabel("Density")
+    ax1.set_title("Length-of-Stay")
+    ax1.legend(fontsize=8)
+
+    ax2.hist(valid_los, bins=80, density=True, color=C_ACCENT, alpha=0.5,
+             edgecolor="white", linewidth=0.3)
+    ax2.set_yscale("log")
+    ax2.set_xlabel("Days")
+    ax2.set_title("LOS (log scale \u2014 heavy tail)")
+    plt.tight_layout()
+    st.pyplot(fig_los)
+    plt.close(fig_los)
+
+
+# ---- CS109 Concepts ----
+with st.expander("CS109 Concepts Demonstrated  \u2014  16 concepts across the full curriculum"):
     concepts = [
-        ("Random Variables",
-         "$N_t$, $L$, $O_t$, $\\lambda$",
-         "Foundation of the model"),
-        ("Distributions",
-         "Poisson, Gamma, NegBin, LogNormal",
-         "Each justified probabilistically"),
-        ("Conditional Probability",
-         "$P(N_t \\mid \\lambda)$, $P(\\lambda \\mid \\text{data})$",
-         "Core of Bayesian update"),
-        ("Bayes' Theorem",
-         "Prior \u00d7 Likelihood = Posterior",
-         "Gamma\u2013Poisson conjugacy"),
-        ("Posterior Predictive",
-         "Integrate out $\\lambda$ \u2192 NegBin",
-         "Predictions with parameter uncertainty"),
-        ("Conjugate Priors",
-         "Gamma\u2013Poisson \u2192 exact posterior",
-         "No MCMC needed"),
-        ("Law of Total Variance",
-         "Var = E[Var|$\\lambda$] + Var[E|$\\lambda$]",
-         "Epistemic vs. aleatoric"),
-        ("Monte Carlo Simulation",
-         "2,000+ occupancy trajectories",
-         "Full uncertainty propagation"),
-        ("Maximum Likelihood",
-         "$\\hat{\\lambda} = \\sum k / T$",
-         "Compared against Bayesian"),
-        ("Central Limit Theorem",
-         "Frequentist CI via CLT",
-         "MLE interval construction"),
-        ("Information Theory",
-         "KL divergence",
-         "Quantifies learning per observation"),
-        ("Hypothesis Testing",
-         "Posterior predictive p-values",
-         "Bayesian anomaly detection"),
-        ("Model Comparison",
-         "Log predictive score",
-         "Proper scoring rule"),
-        ("Calibration",
-         "Coverage, PIT histograms",
-         "Are intervals honest?"),
-        ("Sensitivity Analysis",
-         "Assumptions \u2192 P(overcrowded)",
-         "Which choices matter?"),
-        ("Prior Sensitivity",
-         "3 priors \u2192 convergence",
-         "Evidence overwhelms priors"),
+        ("Random Variables", "$N_t$, $L$, $O_t$, $\\lambda$"),
+        ("Distributions", "Poisson, Gamma, NegBin, LogNormal"),
+        ("Conditional Probability", "$P(N_t|\\lambda)$, $P(\\lambda|\\text{data})$"),
+        ("Bayes' Theorem", "Prior \u00d7 Likelihood = Posterior"),
+        ("Posterior Predictive", "Integrate out $\\lambda$ \u2192 NegBin"),
+        ("Conjugate Priors", "Gamma\u2013Poisson \u2192 exact posterior"),
+        ("Law of Total Variance", "Epistemic vs. aleatoric decomposition"),
+        ("Monte Carlo Simulation", "2,000+ occupancy trajectories"),
+        ("Maximum Likelihood", "$\\hat{\\lambda} = \\sum k / T$"),
+        ("Central Limit Theorem", "Frequentist CI construction"),
+        ("Information Theory", "KL divergence for learning rate"),
+        ("Hypothesis Testing", "Posterior predictive p-values"),
+        ("Model Comparison", "Log predictive score (proper)"),
+        ("Calibration", "Coverage and PIT histograms"),
+        ("Sensitivity Analysis", "Assumptions \u2192 P(overcrowded)"),
+        ("Prior Sensitivity", "3 priors \u2192 convergence"),
     ]
 
-    cols_per_row = 4
-    for row_start in range(0, len(concepts), cols_per_row):
-        cols = st.columns(cols_per_row)
+    for row_start in range(0, 16, 4):
+        cols = st.columns(4)
         for j, col in enumerate(cols):
             idx = row_start + j
-            if idx < len(concepts):
-                name, detail, desc = concepts[idx]
-                col.markdown(
-                    f"**{idx + 1}. {name}**  \n"
-                    f"{detail}  \n"
-                    f"_{desc}_"
-                )
+            if idx < 16:
+                n, d = concepts[idx]
+                col.markdown(f"**{idx+1}. {n}**  \n{d}")
 
-    st.divider()
-
-    # Prior sensitivity demo
-    st.subheader("Prior Sensitivity: Evidence Overwhelms Prior Beliefs")
-    st.markdown(
-        "Three very different priors \u2014 uninformative, weakly informative, "
-        "and deliberately wrong \u2014 all converge to the same posterior "
-        "after sufficient data. This is a fundamental Bayesian result."
-    )
-
-    sens_histories = run_prior_sensitivity(daily_counts)
-
-    fig_ps, ax_ps = plt.subplots(figsize=(13, 4))
-    color_ps = [RED, BLUE, GREEN]
-    for (name, hist), color in zip(sens_histories.items(), color_ps):
+    # Prior sensitivity
+    st.markdown("---")
+    st.markdown("**Prior Sensitivity: Evidence Overwhelms Prior Beliefs**")
+    sens = run_prior_sensitivity(daily_counts)
+    fig_ps, ax_ps = plt.subplots(figsize=(12, 3.5))
+    cps = [C_MUTED_RED, C_PRIMARY, C_MUTED_GREEN]
+    for (name, hist), c in zip(sens.items(), cps):
         t = np.array(hist.times)
         m = np.array(hist.means)
-        ax_ps.plot(t[1:], m[1:], color=color, linewidth=2, label=name)
+        ax_ps.plot(t[1:], m[1:], color=c, linewidth=2, label=name)
     for s, e in config.surge_windows:
-        ax_ps.axvspan(s, e, alpha=0.1, color=ORANGE)
+        ax_ps.axvspan(s, e, alpha=0.07, color=C_ACCENT)
     ax_ps.set_xlabel("Day")
-    ax_ps.set_ylabel("\u03BB estimate")
-    ax_ps.set_title("Prior Sensitivity: All Priors Converge to Same Posterior")
-    ax_ps.legend()
+    ax_ps.set_ylabel("\u03BB")
+    ax_ps.set_title("All Priors Converge")
+    ax_ps.legend(fontsize=8)
     plt.tight_layout()
     st.pyplot(fig_ps)
     plt.close(fig_ps)
 
-    st.divider()
 
-    # Ethical reflection
-    st.subheader("Ethical Reflection")
-    st.markdown(
-        """
-- **Synthetic data** used for ethical reasons \u2014 real ICU data contains
-  protected health information
-- **Never a point estimate** \u2014 every prediction includes a credible interval
-- **5 failure modes documented** with detection criteria and uncertainty widening
-- **Not for autonomous deployment** \u2014 probabilistic forecasts should
-  augment, never replace, clinical judgment
-- **Goodhart's Law** flagged as an irreducible limitation: any deployed
-  model that influences the system it measures risks becoming unreliable
-"""
+# ---- Ethical Reflection ----
+with st.expander("Ethical Reflection"):
+    st.markdown("""
+- **Synthetic data** \u2014 real ICU data contains protected health information
+- **Never a point estimate** \u2014 every number includes a credible interval
+- **5 failure modes documented** with detection and uncertainty widening
+- **Not for deployment** \u2014 forecasts should augment, not replace, clinical judgment
+- **Goodhart's Law** \u2014 any model that influences the system it measures risks becoming unreliable
+""")
+    mascot_note(
+        "The interface exists to make uncertainty visible, "
+        "not to make predictions impressive."
     )
 
-# ---------------------------------------------------------------------------
-# Footer
-# ---------------------------------------------------------------------------
-st.divider()
-st.caption(
-    "BUICU \u2014 CS109 Challenge Project  |  "
-    "Belief Updating for ICU Crowding Under Uncertainty  |  "
-    "Built with Bayesian inference, not black-box ML"
+
+# =====================================================================
+#  Footer
+# =====================================================================
+st.markdown("&nbsp;", unsafe_allow_html=True)
+st.markdown(
+    "<p style='text-align:center; color:#9CA3AF; font-size:0.8rem; "
+    "margin-top:3rem'>"
+    "BUICU \u2014 CS109 Challenge Project  \u00b7  "
+    "Built with Bayesian inference, not black-box ML</p>",
+    unsafe_allow_html=True,
 )
