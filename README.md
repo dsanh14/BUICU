@@ -5,10 +5,10 @@
 ## Overview
 
 BUICU models ICU crowding as a stochastic process using Bayesian inference.
-The system performs sequential belief updating as new admission data arrives,
-propagates uncertainty through Monte Carlo simulation, and computes calibrated
-probabilistic forecasts of crowding events — all with explicit uncertainty
-quantification, model comparison, and failure-mode analysis.
+The system performs sequential belief updating, propagates uncertainty via
+Monte Carlo simulation, compares models with proper scoring rules, decomposes
+uncertainty into epistemic vs. aleatoric components, and systematically
+analyzes failure modes — demonstrating 16 CS109 concepts in a single project.
 
 ## Probabilistic Model
 
@@ -21,21 +21,6 @@ quantification, model comparison, and failure-mode analysis.
 | L | Empirical / LogNormal mixture | Length of stay |
 | O_t | Monte Carlo simulation | Occupancy (random variable) |
 
-## Project Structure
-
-```
-BUICU/
-├── main.py                  # Full 10-step pipeline
-├── requirements.txt
-├── src/
-│   ├── synthetic_data.py    # MIMIC-IV-calibrated synthetic data generator
-│   ├── bayesian_model.py    # Gamma-Poisson model + windowed model + prior sensitivity
-│   ├── failure_modes.py     # 5 structured failure-mode analyses
-│   ├── nl_interface.py      # Natural-language explanation layer
-│   └── visualizations.py    # 10 publication-quality visualizations
-└── output/                  # Generated plots and writeup sections
-```
-
 ## Usage
 
 ```bash
@@ -43,47 +28,42 @@ pip install -r requirements.txt
 python main.py
 ```
 
-All outputs (10 visualizations + writeup sections) are saved to `output/`.
+All outputs (14 figures + writeup) are saved to `output/`.
 
-## Key Outputs (10 Figures)
+## 14 Visualizations
 
-| # | Figure | What it demonstrates |
+| # | Figure | CS109 Concept |
 |---|---|---|
-| 01 | Belief evolution | Posterior mean + CI + anomaly markers + KL divergence |
-| 02 | Posterior predictive check | NegBin PMF vs empirical histogram + Q-Q plot |
-| 03 | Calibration comparison | Stationary vs windowed model calibration + PIT |
-| 04 | Occupancy forecast | 48h fan chart from near-capacity snapshot |
-| 05 | Model comparison | Stationary vs windowed posterior trajectories |
-| 06 | Prior sensitivity | 3 priors converging to same posterior |
-| 07 | Information gain | KL divergence per observation + anomaly detection |
-| 08 | LOS distribution | Heavy-tail analysis (linear + log scale) |
-| 09 | Prior vs posterior | Bayesian update transformation |
-| 10 | Full dashboard | All key results in single figure |
+| 01 | Belief evolution + anomalies + KL | Bayesian updating, KL divergence |
+| 02 | Posterior predictive check + Q-Q | Posterior predictive, calibration |
+| 03 | Calibration (stationary vs windowed) | Coverage, PIT, model comparison |
+| 04 | 48h occupancy forecast fan chart | Monte Carlo, uncertainty intervals |
+| 05 | Stationary vs windowed model | Non-stationarity, adaptive inference |
+| 06 | Prior sensitivity convergence | Prior robustness, Bayesian consistency |
+| 07 | Information gain + anomaly detection | KL divergence, hypothesis testing |
+| 08 | LOS heavy-tail analysis | Distribution fitting, tail risk |
+| 09 | Prior → Posterior transformation | Bayes' theorem visualization |
+| 10 | Log predictive score comparison | Proper scoring rules |
+| 11 | Sensitivity analysis tornado | Decision sensitivity, robustness |
+| 12 | Variance decomposition | Law of total variance |
+| 13 | MLE vs Bayesian comparison | Frequentist vs Bayesian, CLT |
+| 14 | Full summary dashboard | All key results |
 
-## Advanced Analyses
+## CS109 Concepts Demonstrated (16)
 
-- **Windowed Bayesian Model**: 14-day sliding window that tracks regime shifts
-  (surge mean: 15.8/day vs. stationary estimate: 11.7/day)
-- **Prior Sensitivity**: Three priors (uninformative, weakly informative, strong wrong)
-  converge to near-identical posteriors (KL divergence < 0.001 for first two)
-- **KL Divergence**: Information gain per observation; spikes during surges reveal
-  the stationary model being surprised
-- **Anomaly Detection**: Posterior predictive p-values flag 33/180 days as anomalous,
-  concentrated during surge windows
-
-## Failure Modes Analyzed
-
-- **FM1**: Non-stationarity — surge/normal ratio = 1.86 (detected, high severity)
-- **FM2**: Independence violations — lag-1 autocorrelation = 0.47 (detected, high)
-- **FM3**: Data quality — 2.2% missing discharges (detected, medium)
-- **FM4**: Heavy tails — excess kurtosis = 110 (detected, high)
-- **FM5**: Feedback loops / Goodhart's Law (structural, always flagged)
+1. Random Variables  2. Probability Distributions (Poisson, Gamma, NegBin, LogNormal)
+3. Conditional Probability  4. Bayes' Theorem  5. Posterior Predictive
+6. Conjugate Priors  7. Law of Total Variance  8. Monte Carlo Simulation
+9. Maximum Likelihood Estimation  10. Central Limit Theorem
+11. Information Theory (KL divergence)  12. Hypothesis Testing (p-values)
+13. Model Comparison (proper scoring)  14. Calibration  15. Sensitivity Analysis
+16. Prior Sensitivity
 
 ## Key Results
 
-- **Posterior λ**: 11.72 admissions/day, 95% CI [11.23, 12.23]
-- **LOS**: median 1.7 days, mean 3.7 days (MIMIC-IV calibrated)
-- **Census**: 25.2% of hours over 50-bed capacity
-- **48h Forecast** (from near-capacity snapshot): 41.5% probability of exceeding
-  capacity (95% CI: [40.0%, 42.8%])
-- **Calibration**: Windowed model significantly better calibrated than stationary
+- **Posterior λ**: 11.72 adm/day, 95% CI [11.23, 12.23]
+- **Model comparison**: Windowed wins by 39.4 log-score units
+- **Variance decomposition**: 99.4% stochastic, 0.6% parameter after 180 days
+- **Crowding forecast**: 41.5% within 48h (from near-capacity scenario)
+- **Sensitivity**: Capacity -20% → P(crowded) jumps from 9% to 96%
+- **5 failure modes detected**, combined CI widening ×2.27
