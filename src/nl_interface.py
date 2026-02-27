@@ -14,7 +14,7 @@ Design principles:
 
 import numpy as np
 from typing import List, Optional
-from src.bayesian_model import BeliefState, OccupancySimulator
+from src.bayesian_model import BeliefState
 from src.failure_modes import FailureModeReport
 
 
