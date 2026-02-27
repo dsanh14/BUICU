@@ -44,8 +44,6 @@ M64 = _mascot()
 
 # ── Full CSS ──
 st.markdown(f"""<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
-
 /* reset */
 .stApp {{ background:{BG}; }}
 #MainMenu, footer, header, section[data-testid="stSidebar"] {{ display:none !important; }}
@@ -55,9 +53,11 @@ html, body, [class*="css"],
 [data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] p,
 [data-testid="stMarkdownContainer"] span, [data-testid="stMarkdownContainer"] li,
 [data-testid="stMarkdownContainer"] strong, [data-testid="stMarkdownContainer"] em {{
-    font-family:'DM Sans',sans-serif !important; color:{TXT} !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif !important;
+    color:{TXT} !important;
 }}
-h1,h2,h3 {{ font-family:'DM Serif Display',Georgia,serif !important; font-weight:400; color:{TXT} !important; }}
+h1,h2,h3 {{ font-family: Georgia, 'Times New Roman', serif !important; font-weight:600; color:{TXT} !important; letter-spacing:-0.01em; }}
 h4,h5,h6 {{ color:{TXT} !important; }}
 
 /* force all streamlit text dark */
@@ -81,7 +81,7 @@ h4,h5,h6 {{ color:{TXT} !important; }}
     padding:8px 20px; border-radius:100px; font-size:0.85rem;
     font-weight:500; cursor:default; transition:all 0.15s;
     border:1px solid transparent; color:{TXT3};
-    font-family:'DM Sans',sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }}
 .nav-pill.active {{
     background:{CARD}; color:{TXT}; border-color:{BDR};
@@ -101,7 +101,7 @@ h4,h5,h6 {{ color:{TXT} !important; }}
 
 /* ── hero number ── */
 .hero-num {{
-    font-family:'DM Serif Display',Georgia,serif;
+    font-family: Georgia, 'Times New Roman', serif;
     font-size:6rem; font-weight:400; color:{BLUE};
     line-height:1; letter-spacing:-0.04em;
 }}
@@ -132,7 +132,7 @@ h4,h5,h6 {{ color:{TXT} !important; }}
 .m-note p {{ font-size:0.82rem; color:{TXT3}; line-height:1.55; margin:0; }}
 
 /* ── metrics ── */
-[data-testid="stMetricValue"] {{ font-family:'DM Serif Display',Georgia,serif !important; font-size:1.5rem !important; color:{TXT} !important; }}
+[data-testid="stMetricValue"] {{ font-family: Georgia, 'Times New Roman', serif !important; font-size:1.5rem !important; color:{TXT} !important; }}
 [data-testid="stMetricLabel"] {{ font-size:0.8rem !important; color:{TXT3} !important; text-transform:uppercase; letter-spacing:0.04em; }}
 [data-testid="stMetricDelta"] {{ color:{TXT2} !important; }}
 
@@ -143,7 +143,7 @@ details[data-testid="stExpander"] {{
     margin-bottom:0.5rem !important; overflow:hidden !important;
 }}
 details[data-testid="stExpander"] summary {{
-    font-family:'DM Sans',sans-serif !important; font-weight:500 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; font-weight:500 !important;
     font-size:0.92rem !important; padding:14px 20px !important;
 }}
 
@@ -156,7 +156,7 @@ details[data-testid="stExpander"] summary {{
     border:1px solid {BDR}; padding:4px; display:inline-flex;
 }}
 .stTabs [data-baseweb="tab"] {{
-    border-radius:10px; padding:8px 22px; font-family:'DM Sans',sans-serif !important;
+    border-radius:10px; padding:8px 22px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     font-size:0.85rem !important; font-weight:500 !important; color:{TXT3} !important;
 }}
 .stTabs [data-baseweb="tab"] p {{ color:{TXT3} !important; }}
@@ -367,7 +367,7 @@ sim_r, p_crowd, cur_occ, snap_day = get_sim(
 st.markdown(f"""<div style="text-align:center; padding:2rem 0 0.8rem 0">
 <h1 style="font-size:3rem; margin:0; letter-spacing:-0.02em">BUICU</h1>
 <p style="color:{TXT3}; font-size:0.95rem; margin:0.4rem 0 0 0;
-font-family:'DM Sans',sans-serif; font-weight:300">
+font-family: -apple-system, sans-serif; font-weight:300">
 Belief Updating for ICU Crowding Under Uncertainty &mdash; CS109 Challenge</p>
 </div>""", unsafe_allow_html=True)
 
@@ -682,6 +682,6 @@ with tabs[4]:
 
 # ── Footer ──
 st.markdown(f"""<p style="text-align:center; color:{TXT3}; font-size:0.75rem;
-padding:2.5rem 0 1rem 0; font-family:'DM Sans',sans-serif">
+padding:2.5rem 0 1rem 0; font-family: -apple-system, sans-serif">
 BUICU &middot; CS109 Challenge Project &middot;
 Built with Bayesian inference, not black-box ML</p>""", unsafe_allow_html=True)
