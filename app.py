@@ -156,14 +156,18 @@ details[data-testid="stExpander"] summary {{
     border:1px solid {BDR}; padding:4px; display:inline-flex;
 }}
 .stTabs [data-baseweb="tab"] {{
-    border-radius:10px; padding:8px 22px; font-family:'DM Sans',sans-serif;
-    font-size:0.85rem; font-weight:500; color:{TXT3};
+    border-radius:10px; padding:8px 22px; font-family:'DM Sans',sans-serif !important;
+    font-size:0.85rem !important; font-weight:500 !important; color:{TXT3} !important;
 }}
+.stTabs [data-baseweb="tab"] p {{ color:{TXT3} !important; }}
 .stTabs [aria-selected="true"] {{
     background:{BG} !important; color:{TXT} !important;
     box-shadow:0 1px 3px rgba(0,0,0,0.06);
 }}
+.stTabs [aria-selected="true"] p {{ color:{TXT} !important; }}
 .stTabs [data-baseweb="tab-panel"] {{ padding-top:1.5rem; }}
+.stTabs [data-baseweb="tab-highlight"] {{ background-color: transparent !important; }}
+.stTabs [data-baseweb="tab-border"] {{ display:none !important; }}
 
 /* ── floating mascot ── */
 .fm {{
