@@ -319,6 +319,65 @@ def generate_writeup_sections(belief: BeliefState, prior_mean: float,
     s.append(f"\nCombined CI widening factor: x{combined:.2f}")
     s.append("")
 
+    # --- VARIANCE DECOMPOSITION ---
+    if variance_decomp:
+        s.append(sep)
+        s.append("VARIANCE DECOMPOSITION (LAW OF TOTAL VARIANCE)")
+        s.append(sep)
+        s.append(
+            "By the Law of Total Variance:\n"
+            "  Var[N_future] = E[Var[N|lambda]] + Var[E[N|lambda]]\n"
+            "                = (stochastic)       + (parameter)\n"
+            "                = (aleatoric)        + (epistemic)\n"
+            "\n"
+            "For the Gamma-Poisson model:\n"
+            "  Stochastic: dt * alpha/beta          (irreducible Poisson noise)\n"
+            "  Parameter:  dt^2 * alpha/beta^2      (uncertainty about lambda)\n"
+            "\n"
+            f"After 180 days of observation:\n"
+            f"  Stochastic variance: {variance_decomp['stochastic_variance']:.2f} "
+            f"({100*variance_decomp['stochastic_fraction']:.1f}%)\n"
+            f"  Parameter variance:  {variance_decomp['parameter_variance']:.4f} "
+            f"({100*variance_decomp['parameter_fraction']:.1f}%)\n"
+            f"\n"
+            f"Key insight: {100*variance_decomp['stochastic_fraction']:.0f}% of "
+            "forecast uncertainty is now irreducible stochastic noise.\n"
+            "Collecting more data cannot reduce this — only changing the\n"
+            "underlying process (e.g., reducing arrival variability) can.\n"
+            "This demonstrates the fundamental distinction between epistemic\n"
+            "uncertainty (what we don't know) and aleatoric uncertainty (what\n"
+            "is inherently random)."
+        )
+        s.append("")
+
+    # --- CS109 CONCEPTS USED ---
+    s.append(sep)
+    s.append("CS109 CONCEPTS DEMONSTRATED")
+    s.append(sep)
+    s.append(
+        " 1. Random Variables: N_t (arrivals), L (LOS), O_t (occupancy), lambda (rate)\n"
+        " 2. Probability Distributions: Poisson, Gamma, Negative Binomial, LogNormal\n"
+        " 3. Conditional Probability: P(N_t | lambda), P(lambda | data)\n"
+        " 4. Bayes' Theorem: prior x likelihood = posterior (conjugate update)\n"
+        " 5. Posterior Predictive: integrating out lambda to get P(N_future | data)\n"
+        " 6. Conjugate Priors: Gamma-Poisson yields exact posterior (no MCMC needed)\n"
+        " 7. Law of Total Variance: Var[N] = E[Var[N|lambda]] + Var[E[N|lambda]]\n"
+        " 8. Monte Carlo Simulation: 3000 occupancy trajectories with uncertainty\n"
+        " 9. Maximum Likelihood Estimation: lambda_MLE = sum(k)/T vs. Bayesian\n"
+        "10. Central Limit Theorem: frequentist CI via CLT for MLE comparison\n"
+        "11. Information Theory: KL divergence for information gain quantification\n"
+        "12. Hypothesis Testing: posterior predictive p-values for anomaly detection\n"
+        "13. Model Comparison: one-step-ahead log predictive score (proper scoring)\n"
+        "14. Calibration: coverage probabilities and PIT histograms\n"
+        "15. Sensitivity Analysis: how assumptions affect P(overcrowded)\n"
+        "16. Prior Sensitivity: convergence of posteriors under different priors\n"
+        "\n"
+        "These concepts span the full CS109 curriculum: probability foundations,\n"
+        "Bayesian inference, frequentist methods, simulation, model evaluation,\n"
+        "and decision-making under uncertainty."
+    )
+    s.append("")
+
     # --- ETHICAL REFLECTION ---
     s.append(sep)
     s.append("ETHICAL REFLECTION")
