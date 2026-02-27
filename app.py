@@ -168,6 +168,65 @@ details[data-testid="stExpander"] summary p {{
 .sec-head h2 {{ margin:0; font-size:2rem; font-weight:500; }}
 .sec-head p {{ font-family:{SANS}; color:{TXT3} !important; font-size:0.88rem; font-weight:400; margin:0.4rem 0 0 0; letter-spacing:0.01em; }}
 .qdiv {{ border:none; border-top:1px solid {BDR}; margin:3rem auto; max-width:200px; }}
+.content-shell {{
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 1rem 2rem 1rem;
+}}
+.anchor {{
+    display:block;
+    position:relative;
+    top:-82px;
+    visibility:hidden;
+}}
+.jump-nav {{
+    position: sticky;
+    top: 10px;
+    z-index: 99;
+    margin: 0 auto 1.25rem auto;
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: blur(8px);
+    border: 1px solid {BDR};
+    border-radius: 999px;
+    padding: 6px;
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    max-width: fit-content;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}}
+.jump-nav a {{
+    text-decoration: none !important;
+    font-family: {SANS};
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: {TXT2} !important;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    border-radius: 999px;
+}}
+.jump-nav a:hover {{
+    background: {CARD};
+    color: {TXT} !important;
+}}
+.sec-kicker {{
+    font-family:{SANS};
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: {TXT3} !important;
+    margin-bottom: 0.4rem;
+}}
+.viz-card {{
+    background:{CARD};
+    border:1px solid {BDR};
+    border-radius:16px;
+    padding:0.9rem 1rem 0.3rem 1rem;
+    box-shadow:0 2px 10px rgba(0,0,0,0.035);
+    margin:0.8rem 0 1.2rem 0;
+}}
 
 /* ── concept cards ── */
 .cpt-grid {{
@@ -440,8 +499,11 @@ def mascot_says(txt):
     else:
         st.info(txt)
 
-def section(title, sub=""):
-    html = f'<div class="sec-head"><h2>{title}</h2>'
+def section(title, sub="", anchor="", kicker="SECTION"):
+    html = ""
+    if anchor:
+        html += f'<span id="{anchor}" class="anchor"></span>'
+    html += f'<div class="sec-head"><div class="sec-kicker">{kicker}</div><h2>{title}</h2>'
     if sub:
         html += f'<p>{sub}</p>'
     html += '</div>'
@@ -523,6 +585,7 @@ sim_r, p_crowd, cur_occ, snap_day = get_sim(
 # =====================================================================
 #  1. HERO
 # =====================================================================
+st.markdown('<div class="content-shell">', unsafe_allow_html=True)
 st.markdown(f"""<div style="text-align:center; padding:3.5rem 1rem 1rem 1rem">
 <h1 style="font-size:3.2rem; margin:0; letter-spacing:-0.02em">BUICU</h1>
 <p style="color:{TXT3} !important; font-size:0.95rem; margin:0.5rem 0 0 0;
@@ -532,6 +595,16 @@ Belief Updating for ICU Crowding Under Uncertainty</p>
 font-family:{SANS}; font-weight:300">
 CS109 Challenge Project</p>
 </div>""", unsafe_allow_html=True)
+st.markdown("""
+<div class="jump-nav">
+  <a href="#guess">Guess</a>
+  <a href="#belief">Beliefs</a>
+  <a href="#forecast">Forecast</a>
+  <a href="#evaluation">Evaluation</a>
+  <a href="#concepts">Concepts</a>
+  <a href="#ethics">Ethics</a>
+</div>
+""", unsafe_allow_html=True)
 
 narrate(
     "An ICU has 50 beds and an unpredictable stream of patients. "
@@ -546,7 +619,8 @@ divider()
 #  2. INTERACTIVE: GUESS THE RATE
 # =====================================================================
 section("Can you guess the arrival rate?",
-        "Before seeing any data, what's your intuition?")
+        "Before seeing any data, what's your intuition?",
+        anchor="guess", kicker="INTERACTIVE HOOK")
 
 narrate(
     "This ICU sees a stream of admissions every day. "
@@ -615,7 +689,8 @@ divider()
 #  3. BELIEF EVOLUTION (the main story)
 # =====================================================================
 section("Watch beliefs update",
-        "180 days of data, one day at a time")
+        "180 days of data, one day at a time",
+        anchor="belief", kicker="BELIEF DYNAMICS")
 
 narrate(
     "We start with a vague prior belief about the arrival rate \u03BB. "
@@ -642,7 +717,11 @@ for s, e in config.surge_windows:
 ax.set_xlabel("Day"); ax.set_ylabel("\u03BB (admissions/day)")
 ax.set_title("Posterior Belief Evolution", fontsize=14, pad=14)
 ax.legend(fontsize=9, framealpha=0.85, loc="upper left")
-plt.tight_layout(); st.pyplot(fig); plt.close(fig)
+plt.tight_layout()
+st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+st.pyplot(fig)
+st.markdown('</div>', unsafe_allow_html=True)
+plt.close(fig)
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Final \u03BB", f"{model.belief.mean:.2f}/day")
@@ -663,7 +742,8 @@ divider()
 #  4. INTERACTIVE BELIEF UPDATING
 # =====================================================================
 section("Explore the prior \u2192 posterior update",
-        "Change the prior. Scrub through time. See it converge.")
+        "Change the prior. Scrub through time. See it converge.",
+        kicker="EXPERIMENT")
 
 narrate(
     "What happens if you start with a completely wrong prior? "
@@ -705,7 +785,11 @@ if len(ut) > 1:
         if s < day_t: axe.axvspan(s, min(e, day_t), alpha=0.07, color=WARM)
 axe.set_xlabel("Day"); axe.set_ylabel("\u03BB")
 axe.set_title("Belief Trajectory", fontsize=12)
-plt.tight_layout(); st.pyplot(fig2); plt.close(fig2)
+plt.tight_layout()
+st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+st.pyplot(fig2)
+st.markdown('</div>', unsafe_allow_html=True)
+plt.close(fig2)
 
 mascot_says(
     f"With your prior (\u03B1\u2080={a0:.1f}, \u03B2\u2080={b0:.1f}), "
@@ -722,7 +806,8 @@ divider()
 #  5. UNCERTAINTY DECOMPOSITION
 # =====================================================================
 section("Where does uncertainty come from?",
-        "Law of Total Variance: epistemic vs. aleatoric")
+        "Law of Total Variance: epistemic vs. aleatoric",
+        kicker="UNCERTAINTY")
 
 narrate(
     "Not all uncertainty is created equal. "
@@ -744,7 +829,11 @@ va2.fill_between(tt, 0, vr["stochastic_frac"], alpha=0.4, color=BLUE, label="Ale
 va2.fill_between(tt, vr["stochastic_frac"], 1, alpha=0.4, color=WARM, label="Epistemic")
 va2.set_xlabel("Day"); va2.set_ylabel("Fraction"); va2.set_ylim(0, 1)
 va2.set_title("Composition", fontsize=12); va2.legend(fontsize=8.5)
-plt.tight_layout(); st.pyplot(fig3); plt.close(fig3)
+plt.tight_layout()
+st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+st.pyplot(fig3)
+st.markdown('</div>', unsafe_allow_html=True)
+plt.close(fig3)
 
 vf = VarianceDecomposition.decompose_at_belief(ub)
 mascot_says(
@@ -760,7 +849,8 @@ divider()
 #  6. CROWDING FORECAST
 # =====================================================================
 section("Will the ICU be overcrowded?",
-        "2,000 Monte Carlo trajectories propagate all uncertainty")
+        "2,000 Monte Carlo trajectories propagate all uncertainty",
+        anchor="forecast", kicker="FORECAST")
 
 narrate(
     "This is the question that matters. We sample \u03BB from the posterior, "
@@ -790,7 +880,12 @@ ax4.plot(tg, sr["mean"], color=BLUE, lw=2, label="Mean trajectory")
 ax4.axhline(ucap, color=ROSE, ls="--", lw=1.5, label=f"Capacity ({ucap})")
 ax4.set_xlabel("Hours ahead"); ax4.set_ylabel("Occupancy")
 ax4.set_title(f"{uhrs}-Hour Occupancy Forecast", fontsize=12)
-ax4.legend(fontsize=8.5); plt.tight_layout(); st.pyplot(fig4); plt.close(fig4)
+ax4.legend(fontsize=8.5)
+plt.tight_layout()
+st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+st.pyplot(fig4)
+st.markdown('</div>', unsafe_allow_html=True)
+plt.close(fig4)
 
 pk = np.max(sr["trajectories"], axis=1)
 with st.expander("Sensitivity: how does capacity change the risk?"):
@@ -801,7 +896,11 @@ with st.expander("Sensitivity: how does capacity change the risk?"):
         ax5.barh(f"{c} beds{tag}", p, color=[ROSE, BLUE, SAGE][i], alpha=0.6, height=0.5)
     ax5.set_xlabel("P(overcrowded) %"); ax5.set_xlim(0, 100)
     ax5.set_title("Capacity Sensitivity", fontsize=10)
-    plt.tight_layout(); st.pyplot(fig5); plt.close(fig5)
+    plt.tight_layout()
+    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+    st.pyplot(fig5)
+    st.markdown('</div>', unsafe_allow_html=True)
+    plt.close(fig5)
 
 mascot_says(
     f"This probability is <strong>not</strong> a point estimate. "
@@ -817,7 +916,8 @@ divider()
 #  7. MODEL EVALUATION
 # =====================================================================
 section("How good is this model?",
-        "Proper scoring, calibration, and honest failure analysis")
+        "Proper scoring, calibration, and honest failure analysis",
+        anchor="evaluation", kicker="VALIDATION")
 
 narrate(
     "A probability model that can't be evaluated is just a story. "
@@ -839,7 +939,11 @@ with et1:
     for s, e in config.surge_windows: ax6.axvspan(s, e, alpha=0.07, color=WARM)
     ax6.set_xlabel("Day"); ax6.set_ylabel("\u03BB")
     ax6.set_title("Two Bayesian Models", fontsize=12); ax6.legend(fontsize=8.5)
-    plt.tight_layout(); st.pyplot(fig6); plt.close(fig6)
+    plt.tight_layout()
+    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+    st.pyplot(fig6)
+    st.markdown('</div>', unsafe_allow_html=True)
+    plt.close(fig6)
 
     sc = get_sc(daily_counts, np.array(model.history.alphas), np.array(model.history.betas),
                 np.array(w_hist.alphas), np.array(w_hist.betas))
@@ -864,7 +968,12 @@ with et2:
     a72.plot(d, ml["mle_ci_hi"]-ml["mle_ci_lo"], color=ROSE, lw=1.5, label="Frequentist CI")
     a72.plot(d, ml["bayes_ci_hi"]-ml["bayes_ci_lo"], color=BLUE, lw=1.5, label="Bayesian CI")
     a72.set_xlabel("Day"); a72.set_ylabel("Width"); a72.set_title("Interval Width", fontsize=12)
-    a72.legend(fontsize=8.5); plt.tight_layout(); st.pyplot(fig7); plt.close(fig7)
+    a72.legend(fontsize=8.5)
+    plt.tight_layout()
+    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+    st.pyplot(fig7)
+    st.markdown('</div>', unsafe_allow_html=True)
+    plt.close(fig7)
 
     mascot_says(
         "Both converge \u2014 that's the <strong>Bernstein\u2013von Mises theorem</strong>. "
@@ -896,7 +1005,8 @@ divider()
 #  8. CS109 CONCEPTS
 # =====================================================================
 section("16 CS109 concepts in one project",
-        "Spanning probability, inference, simulation, and evaluation")
+        "Spanning probability, inference, simulation, and evaluation",
+        anchor="concepts", kicker="LEARNING OUTCOMES")
 
 categories = [
     ("Probability Foundations", BLUE, [
@@ -949,7 +1059,11 @@ with st.expander("Prior sensitivity: 3 different priors, same convergence"):
     for s, e in config.surge_windows: ax9.axvspan(s, e, alpha=0.07, color=WARM)
     ax9.set_xlabel("Day"); ax9.set_ylabel("\u03BB")
     ax9.set_title("All Priors Converge", fontsize=12); ax9.legend(fontsize=8.5)
-    plt.tight_layout(); st.pyplot(fig9); plt.close(fig9)
+    plt.tight_layout()
+    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+    st.pyplot(fig9)
+    st.markdown('</div>', unsafe_allow_html=True)
+    plt.close(fig9)
     mnote("This is perhaps the most reassuring result: the data speaks louder than the prior.")
 
 with st.expander("The probabilistic model"):
@@ -961,14 +1075,19 @@ with st.expander("The probabilistic model"):
     al1.set_xlabel("Days"); al1.set_title("Length of Stay", fontsize=10); al1.legend(fontsize=8)
     al2.hist(vl, bins=80, density=True, color=WARM, alpha=0.4, edgecolor="white", lw=0.3)
     al2.set_yscale("log"); al2.set_xlabel("Days"); al2.set_title("LOS (log scale \u2014 heavy tail)", fontsize=10)
-    plt.tight_layout(); st.pyplot(fig8); plt.close(fig8)
+    plt.tight_layout()
+    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+    st.pyplot(fig8)
+    st.markdown('</div>', unsafe_allow_html=True)
+    plt.close(fig8)
 
 divider()
 
 # =====================================================================
 #  9. ETHICAL REFLECTION
 # =====================================================================
-section("Ethical reflection", "What this model should and shouldn't do")
+section("Ethical reflection", "What this model should and shouldn't do",
+        anchor="ethics", kicker="RESPONSIBILITY")
 
 narrate(
     "A model that influences ICU staffing carries real consequences. "
@@ -990,6 +1109,7 @@ mascot_says(
     "We flag this as <strong>Failure Mode 5</strong>."
 )
 
+st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Footer ──
 st.markdown(f"""
