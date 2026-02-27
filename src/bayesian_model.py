@@ -527,3 +527,160 @@ class OccupancySimulator:
             'n_samples': n_samples,
             'peak_occupancy_dist': peak_occupancy,
         }
+
+
+class ModelComparisonScorer:
+    """
+    Formal model comparison via one-step-ahead log predictive score.
+
+    For each day t, we compute log P(y_t | y_{1:t-1}) under each model.
+    The model with the HIGHER total log score fits the data better in a
+    proper scoring sense — it assigns more probability to what actually happened.
+
+    This is a strict proper scoring rule: it cannot be gamed and rewards
+    both accuracy and calibration simultaneously.
+
+    For the Gamma-Poisson model, the one-step-ahead predictive is:
+        y_t | y_{1:t-1} ~ NegBin(α_{t-1}, β_{t-1}/(β_{t-1}+1))
+
+    so log P(y_t | y_{1:t-1}) = log NegBin(y_t; α_{t-1}, β_{t-1}/(β_{t-1}+1))
+    """
+
+    @staticmethod
+    def compute_log_scores(daily_counts: np.ndarray,
+                           stationary_history: BeliefHistory,
+                           windowed_history: BeliefHistory) -> dict:
+        """
+        Compute one-step-ahead log predictive scores for both models.
+
+        Returns dict with per-day scores and cumulative scores.
+        """
+        n = len(daily_counts)
+
+        stat_scores = np.zeros(n - 1)
+        wind_scores = np.zeros(n - 1)
+
+        for t in range(1, n):
+            k = daily_counts[t]
+
+            # Stationary model: use posterior from previous step
+            a_s = stationary_history.alphas[t - 1]
+            b_s = stationary_history.betas[t - 1]
+            p_s = b_s / (b_s + 1.0)
+            stat_scores[t - 1] = stats.nbinom.logpmf(k, n=a_s, p=p_s)
+
+            # Windowed model: use windowed posterior from previous step
+            idx = min(t - 1, len(windowed_history.alphas) - 1)
+            a_w = windowed_history.alphas[idx]
+            b_w = windowed_history.betas[idx]
+            p_w = b_w / (b_w + 1.0)
+            wind_scores[t - 1] = stats.nbinom.logpmf(k, n=a_w, p=p_w)
+
+        return {
+            'stationary_scores': stat_scores,
+            'windowed_scores': wind_scores,
+            'stationary_total': float(np.sum(stat_scores)),
+            'windowed_total': float(np.sum(wind_scores)),
+            'stationary_mean': float(np.mean(stat_scores)),
+            'windowed_mean': float(np.mean(wind_scores)),
+            'cumulative_stationary': np.cumsum(stat_scores),
+            'cumulative_windowed': np.cumsum(wind_scores),
+            'difference': float(np.sum(wind_scores) - np.sum(stat_scores)),
+            'days': np.arange(1, n),
+        }
+
+
+class SensitivityAnalysis:
+    """
+    Sensitivity analysis: how does P(overcrowded) change when we vary
+    key model assumptions?
+
+    We vary three dimensions:
+      1. Arrival rate model (stationary posterior vs. windowed posterior)
+      2. LOS distribution (empirical vs. truncated at p90 vs. inflated tails)
+      3. Capacity assumption (±20%)
+
+    This produces a sensitivity table showing which assumption has the
+    largest impact on the conclusion — a hallmark of mature modeling.
+    """
+
+    @staticmethod
+    def run(current_patients: np.ndarray,
+            los_model: LOSModel,
+            stationary_belief: BeliefState,
+            windowed_belief: BeliefState,
+            capacity: int,
+            forecast_hours: int = 48,
+            n_mc: int = 2000) -> dict:
+        """Run sensitivity analysis and return structured results."""
+        rng = np.random.default_rng(999)
+        results = {}
+
+        scenarios = {
+            'Baseline': {
+                'alpha': stationary_belief.alpha, 'beta': stationary_belief.beta,
+                'los_mode': 'empirical', 'capacity': capacity,
+            },
+            'Windowed arrival rate': {
+                'alpha': windowed_belief.alpha, 'beta': windowed_belief.beta,
+                'los_mode': 'empirical', 'capacity': capacity,
+            },
+            'Truncated LOS (no tails)': {
+                'alpha': stationary_belief.alpha, 'beta': stationary_belief.beta,
+                'los_mode': 'truncated', 'capacity': capacity,
+            },
+            'Inflated LOS tails (×1.5)': {
+                'alpha': stationary_belief.alpha, 'beta': stationary_belief.beta,
+                'los_mode': 'inflated', 'capacity': capacity,
+            },
+            'Capacity -20% (stress)': {
+                'alpha': stationary_belief.alpha, 'beta': stationary_belief.beta,
+                'los_mode': 'empirical', 'capacity': int(capacity * 0.8),
+            },
+            'Capacity +20% (slack)': {
+                'alpha': stationary_belief.alpha, 'beta': stationary_belief.beta,
+                'los_mode': 'empirical', 'capacity': int(capacity * 1.2),
+            },
+        }
+
+        raw_los = los_model.raw_los.copy()
+        p90_los = np.percentile(raw_los, 90)
+
+        for name, params in scenarios.items():
+            peaks = np.zeros(n_mc)
+            for i in range(n_mc):
+                lam = rng.gamma(params['alpha'], 1.0 / params['beta'])
+                n_future = rng.poisson(lam * forecast_hours / 24.0)
+
+                # Existing patients
+                n_existing_at_peak = int(np.sum(current_patients > forecast_hours / 2))
+
+                # Sample LOS based on mode
+                if n_future > 0:
+                    if params['los_mode'] == 'truncated':
+                        los = rng.choice(raw_los[raw_los <= p90_los], size=n_future,
+                                         replace=True)
+                    elif params['los_mode'] == 'inflated':
+                        los = rng.choice(raw_los, size=n_future, replace=True) * 1.5
+                    else:
+                        los = rng.choice(raw_los, size=n_future, replace=True)
+
+                    offsets = rng.uniform(0, forecast_hours, size=n_future)
+                    t_check = forecast_hours / 2
+                    present = np.sum((offsets <= t_check) &
+                                     (offsets + los > t_check))
+                else:
+                    present = 0
+
+                peaks[i] = n_existing_at_peak + present
+
+            p_crowd = float(np.mean(peaks > params['capacity']))
+            results[name] = {
+                'p_overcrowded': p_crowd,
+                'capacity': params['capacity'],
+                'mean_peak': float(np.mean(peaks)),
+                'ci_low': float(np.percentile(peaks, 2.5)),
+                'ci_high': float(np.percentile(peaks, 97.5)),
+            }
+
+        return results

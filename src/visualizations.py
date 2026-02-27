@@ -435,6 +435,94 @@ def plot_information_gain(history: BeliefHistory, surge_windows: List[tuple],
     return fig
 
 
+def plot_log_score_comparison(score_result: dict, surge_windows: List[tuple],
+                              save_path: Optional[str] = None):
+    """
+    ADVANCED: Formal model comparison via cumulative log predictive score.
+
+    The model with the higher cumulative score assigns more probability
+    to the observations that actually occurred — a proper scoring rule.
+    """
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(13, 7), sharex=True)
+
+    days = score_result['days']
+
+    # Cumulative log scores
+    ax1.plot(days, score_result['cumulative_stationary'], 'b-', linewidth=1.5,
+             label=f"Stationary (total = {score_result['stationary_total']:.1f})")
+    ax1.plot(days, score_result['cumulative_windowed'], 'g-', linewidth=1.5,
+             label=f"Windowed (total = {score_result['windowed_total']:.1f})")
+    _shade_surges(ax1, surge_windows)
+    ax1.set_ylabel('Cumulative log predictive score')
+    ax1.set_title('Model Comparison: One-Step-Ahead Log Predictive Score',
+                  fontweight='bold')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+
+    # Per-day score difference (windowed - stationary)
+    diff = score_result['windowed_scores'] - score_result['stationary_scores']
+    colors = ['green' if d > 0 else 'blue' for d in diff]
+    ax2.bar(days, diff, width=0.8, color=colors, alpha=0.5)
+    ax2.axhline(0, color='black', linewidth=0.5)
+    _shade_surges(ax2, surge_windows, first_only_label=False)
+    ax2.set_ylabel('Score difference\n(windowed − stationary)')
+    ax2.set_xlabel('Day')
+    ax2.set_title('Per-Day Advantage (green = windowed better)', fontsize=10)
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    if save_path:
+        fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)
+    return fig
+
+
+def plot_sensitivity_analysis(sensitivity_results: dict,
+                               save_path: Optional[str] = None):
+    """
+    ADVANCED: Sensitivity analysis tornado chart.
+
+    Shows how P(overcrowded) changes under different assumptions,
+    revealing which modeling choices matter most.
+    """
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    names = list(sensitivity_results.keys())
+    p_values = [sensitivity_results[n]['p_overcrowded'] for n in names]
+    baseline_p = p_values[0]
+
+    y_pos = np.arange(len(names))
+    colors = ['#1976D2' if p <= baseline_p else '#D32F2F' for p in p_values]
+    colors[0] = '#616161'
+
+    bars = ax.barh(y_pos, [p * 100 for p in p_values], color=colors, alpha=0.7,
+                   edgecolor='white', height=0.6)
+
+    ax.axvline(baseline_p * 100, color='black', linestyle='--', linewidth=1,
+               label=f'Baseline = {baseline_p * 100:.1f}%')
+
+    for i, (name, p) in enumerate(zip(names, p_values)):
+        cap = sensitivity_results[name]['capacity']
+        ax.text(p * 100 + 1, i,
+                f'{p * 100:.1f}% (cap={cap})',
+                va='center', fontsize=8)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(names, fontsize=9)
+    ax.set_xlabel('P(overcrowded within 48h) [%]')
+    ax.set_title('Sensitivity Analysis: How Assumptions Affect Crowding Probability',
+                 fontweight='bold')
+    ax.legend(loc='lower right')
+    ax.grid(True, alpha=0.3, axis='x')
+    ax.invert_yaxis()
+
+    plt.tight_layout()
+    if save_path:
+        fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)
+    return fig
+
+
 def plot_occupancy_forecast(sim_result: dict, save_path: Optional[str] = None):
     """Occupancy forecast with uncertainty fan chart."""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), height_ratios=[3, 1],
@@ -557,6 +645,7 @@ def create_summary_dashboard(history: BeliefHistory,
                               surge_windows: List[tuple],
                               alpha_0: float, beta_0: float,
                               windowed_history: Optional[BeliefHistory] = None,
+                              sensitivity_histories: Optional[Dict[str, BeliefHistory]] = None,
                               save_path: Optional[str] = None):
     """Combined dashboard with all key results."""
     fig = plt.figure(figsize=(20, 16))
@@ -683,11 +772,20 @@ def create_summary_dashboard(history: BeliefHistory,
     ax9.set_ylim(-0.02, 1.02)
     ax9.grid(True, alpha=0.3)
 
-    # (3,2): Prior sensitivity (final posteriors)
+    # (3,2): Prior sensitivity — actual final posteriors
     ax10 = fig.add_subplot(gs[3, 2])
-    ax10.text(0.5, 0.5, 'See prior\nsensitivity plot', ha='center', va='center',
-              transform=ax10.transAxes, fontsize=11, color='gray')
+    if sensitivity_histories:
+        x_ps = np.linspace(5, 18, 300)
+        ps_colors = {'Uninformative': '#E53935', 'Weakly informative': '#1E88E5',
+                     'Strong (wrong center)': '#43A047'}
+        for name, hist in sensitivity_histories.items():
+            a, b = hist.alphas[-1], hist.betas[-1]
+            ax10.plot(x_ps, stats.gamma.pdf(x_ps, a=a, scale=1.0 / b),
+                      color=ps_colors.get(name, 'gray'), linewidth=1.5,
+                      label=name[:12])
+        ax10.legend(fontsize=6)
     ax10.set_title('Prior Sensitivity', fontweight='bold', fontsize=10)
+    ax10.set_xlabel('λ')
     ax10.grid(True, alpha=0.3)
 
     fig.suptitle('BUICU: Bayesian ICU Crowding Under Uncertainty — Full Dashboard',
