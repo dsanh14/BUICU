@@ -250,7 +250,13 @@ def step6_posterior_predictive(model):
 
 
 def step7_occupancy_simulation(model, data):
-    """Step 7: Monte Carlo occupancy simulation."""
+    """
+    Step 7: Monte Carlo occupancy simulation.
+
+    We forecast from a mid-surge snapshot (day 40) where the ICU is under
+    stress, making the crowding prediction non-trivial and demonstrating
+    how the model behaves when it matters most.
+    """
     print("=" * 70)
     print("STEP 7: Monte Carlo occupancy simulation (48h forecast)")
     print("=" * 70)
@@ -261,16 +267,22 @@ def step7_occupancy_simulation(model, data):
 
     simulator = OccupancySimulator(model, los_model, data['capacity'])
 
-    end_hour = data['n_days'] * 24
-    recent_mask = (data['admission_times_true'] > end_hour - 72)
+    # Snapshot at day 36 (early surge, near capacity tipping point)
+    snapshot_day = 36
+    snapshot_hour = snapshot_day * 24 + 12
+    print(f"  Forecasting from day {snapshot_day} (near capacity, surge onset)")
+
+    # Find patients present at the snapshot time
     remaining_los = []
-    for i in np.where(recent_mask)[0]:
+    for i in range(data['n_patients']):
+        admit = data['admission_times_true'][i]
         discharge = data['discharge_times_true'][i]
-        if discharge > end_hour:
-            remaining_los.append(discharge - end_hour)
+        if admit <= snapshot_hour < discharge:
+            remaining_los.append(discharge - snapshot_hour)
     current_patients = np.array(remaining_los) if remaining_los else np.array([0.0])
 
-    print(f"  Current patients in ICU: {len(current_patients)}")
+    print(f"  Current patients in ICU at snapshot: {len(current_patients)}")
+    print(f"  Current occupancy: {len(current_patients)} / {data['capacity']}")
     print(f"  Mean remaining LOS: {np.mean(current_patients):.1f} hours")
     print()
 
