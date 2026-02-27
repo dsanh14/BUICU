@@ -523,6 +523,110 @@ def plot_sensitivity_analysis(sensitivity_results: dict,
     return fig
 
 
+def plot_variance_decomposition(decomp_result: dict, surge_windows: List[tuple],
+                                 save_path: Optional[str] = None):
+    """
+    ADVANCED: Law of Total Variance — epistemic vs. aleatoric uncertainty.
+
+    Shows how parameter uncertainty (epistemic) shrinks with more data
+    while stochastic uncertainty (aleatoric) stays constant, demonstrating
+    the fundamental limit of learning from data.
+    """
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(13, 7), sharex=True)
+
+    times = decomp_result['times']
+    total = decomp_result['total']
+    stoch = decomp_result['stochastic']
+    param = decomp_result['parameter']
+
+    # Stacked area: absolute variances
+    ax1.fill_between(times, 0, stoch, alpha=0.4, color='steelblue',
+                     label='Stochastic (aleatoric) — irreducible')
+    ax1.fill_between(times, stoch, total, alpha=0.4, color='orange',
+                     label='Parameter (epistemic) — reducible with data')
+    ax1.plot(times, total, 'k-', linewidth=1.0, alpha=0.5, label='Total')
+    _shade_surges(ax1, surge_windows)
+    ax1.set_ylabel('Variance of N_future')
+    ax1.set_title('Law of Total Variance: Uncertainty Decomposition',
+                  fontweight='bold')
+    ax1.legend(loc='upper right', fontsize=8)
+    ax1.grid(True, alpha=0.3)
+
+    # Fraction plot
+    ax2.fill_between(times, 0, decomp_result['stochastic_frac'],
+                     alpha=0.5, color='steelblue', label='Stochastic fraction')
+    ax2.fill_between(times, decomp_result['stochastic_frac'], 1.0,
+                     alpha=0.5, color='orange', label='Parameter fraction')
+    ax2.axhline(0.5, color='black', linestyle=':', linewidth=0.5, alpha=0.3)
+    _shade_surges(ax2, surge_windows, first_only_label=False)
+    ax2.set_ylabel('Fraction of total variance')
+    ax2.set_xlabel('Time (days)')
+    ax2.set_title('Uncertainty Composition Over Time', fontsize=10)
+    ax2.set_ylim(0, 1)
+    ax2.legend(loc='upper right', fontsize=8)
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    if save_path:
+        fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)
+    return fig
+
+
+def plot_mle_vs_bayesian(mle_result: dict, surge_windows: List[tuple],
+                          save_path: Optional[str] = None):
+    """
+    ADVANCED: MLE vs. Bayesian estimation comparison.
+
+    Demonstrates that:
+    - Bayesian CIs are wider (more honest) early on
+    - Both converge as data accumulates (Bernstein–von Mises)
+    - Bayesian estimate is regularized toward the prior
+    """
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(13, 7), sharex=True)
+
+    days = mle_result['days']
+
+    # Point estimates
+    ax1.plot(days, mle_result['mle_means'], 'r-', linewidth=1.5,
+             label='MLE (frequentist)', alpha=0.8)
+    ax1.plot(days, mle_result['bayes_means'], 'b-', linewidth=1.5,
+             label='Bayesian posterior mean', alpha=0.8)
+    _shade_surges(ax1, surge_windows)
+    ax1.set_ylabel('λ estimate (admissions/day)')
+    ax1.set_title('MLE vs. Bayesian Estimation of Arrival Rate', fontweight='bold')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+
+    # CI width comparison
+    mle_width = mle_result['mle_ci_hi'] - mle_result['mle_ci_lo']
+    bayes_width = mle_result['bayes_ci_hi'] - mle_result['bayes_ci_lo']
+    ax2.plot(days, mle_width, 'r-', linewidth=1.5,
+             label='Frequentist 95% CI width')
+    ax2.plot(days, bayes_width, 'b-', linewidth=1.5,
+             label='Bayesian 95% CI width')
+
+    # Highlight early period where Bayesian is wider
+    cross_idx = np.argmax(mle_width > bayes_width) if np.any(mle_width > bayes_width) else len(days)
+    if cross_idx > 0:
+        ax2.axvspan(0, days[min(cross_idx, len(days) - 1)], alpha=0.08, color='blue',
+                    label=f'Bayesian wider (first {min(cross_idx, len(days))} days)')
+
+    _shade_surges(ax2, surge_windows, first_only_label=False)
+    ax2.set_ylabel('CI width')
+    ax2.set_xlabel('Day')
+    ax2.set_title('Interval Width: Bayesian is More Honest With Limited Data',
+                  fontsize=10)
+    ax2.legend(fontsize=7)
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    if save_path:
+        fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)
+    return fig
+
+
 def plot_occupancy_forecast(sim_result: dict, save_path: Optional[str] = None):
     """Occupancy forecast with uncertainty fan chart."""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), height_ratios=[3, 1],
