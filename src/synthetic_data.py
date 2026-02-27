@@ -29,7 +29,7 @@ from typing import Optional
 class SyntheticICUConfig:
     """All parameters for synthetic data generation, with MIMIC-IV-calibrated defaults."""
     n_days: int = 180
-    capacity: int = 25
+    capacity: int = 50
     base_arrival_rate: float = 10.0        # admissions per day (baseline)
     surge_rate_multiplier: float = 1.8     # multiplier during surge windows
     surge_windows: list = field(default_factory=lambda: [(30, 50), (110, 130)])
