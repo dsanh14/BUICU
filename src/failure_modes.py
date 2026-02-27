@@ -276,7 +276,7 @@ class FailureModeAnalyzer:
 
         detected = kurt > 3.0 or tail_ratio > 2.0
         severity = "high" if kurt > 6.0 else ("medium" if kurt > 3.0 else "low")
-        penalty = 1.0 + 0.05 * max(0, kurt - 3.0) if detected else 1.0
+        penalty = min(1.0 + 0.05 * max(0, kurt - 3.0), 1.5) if detected else 1.0
 
         return FailureModeReport(
             name="Distribution mismatch / heavy tails (FM4)",
