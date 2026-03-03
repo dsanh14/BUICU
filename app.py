@@ -22,16 +22,16 @@ st.set_page_config(page_title="BUICU", page_icon="\U0001F3E5",
                    layout="wide", initial_sidebar_state="collapsed")
 
 # ── palette ──
-BG   = "#F7F6F3"
+BG   = "#F9FAFB"
 CARD = "#FFFFFF"
-TXT  = "#1A1A1A"
-TXT2 = "#555555"
-TXT3 = "#999999"
-BDR  = "#E0DDD8"
-BLUE = "#5B7FA5"
-WARM = "#C49A6C"
-SAGE = "#6F9E7C"
-ROSE = "#B07070"
+TXT  = "#111827"
+TXT2 = "#4B5563"
+TXT3 = "#9CA3AF"
+BDR  = "#E5E7EB"
+BLUE = "#0A66C2"
+WARM = "#D97706"
+SAGE = "#059669"
+ROSE = "#DC2626"
 
 SERIF = "'Playfair Display', Georgia, 'Times New Roman', serif"
 SANS  = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
@@ -136,9 +136,14 @@ details[data-testid="stExpander"] summary p {{
 
 /* ── custom classes ── */
 .card {{
-    background:{CARD}; border:1px solid {BDR}; border-radius:18px;
-    padding:2rem 2.4rem; box-shadow:0 2px 8px rgba(0,0,0,0.03);
-    margin-bottom:1.2rem;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius:24px;
+    padding:2.5rem 3rem; 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    margin-bottom:1.5rem;
 }}
 .hero-num {{
     font-family:{SERIF}; font-size:5.5rem; font-weight:600;
@@ -181,19 +186,21 @@ details[data-testid="stExpander"] summary p {{
 }}
 .jump-nav {{
     position: sticky;
-    top: 10px;
+    top: 16px;
     z-index: 99;
-    margin: 0 auto 1.25rem auto;
-    background: rgba(255,255,255,0.78);
-    backdrop-filter: blur(8px);
-    border: 1px solid {BDR};
+    margin: 0 auto 1.5rem auto;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(229, 231, 235, 0.5);
     border-radius: 999px;
-    padding: 6px;
+    padding: 8px;
     display: flex;
-    gap: 6px;
+    gap: 8px;
     justify-content: center;
     max-width: fit-content;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
 }}
 .jump-nav a {{
     text-decoration: none !important;
@@ -220,12 +227,19 @@ details[data-testid="stExpander"] summary p {{
     margin-bottom: 0.4rem;
 }}
 .viz-card {{
-    background:{CARD};
-    border:1px solid {BDR};
-    border-radius:16px;
-    padding:0.9rem 1rem 0.3rem 1rem;
-    box-shadow:0 2px 10px rgba(0,0,0,0.035);
-    margin:0.8rem 0 1.2rem 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 20px;
+    padding: 1.2rem 1.2rem 0.5rem 1.2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    margin: 1rem 0 1.5rem 0;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}}
+.viz-card:hover {{
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
 }}
 
 /* ── concept cards ── */
@@ -451,13 +465,15 @@ details[data-testid="stExpander"] summary p {{
 
 # ── Matplotlib ──
 plt.rcParams.update({
-    "figure.facecolor": CARD, "axes.facecolor": CARD,
-    "axes.edgecolor": "#D5D2CD", "axes.grid": True,
-    "grid.alpha": 0.12, "grid.color": "#D5D2CD",
-    "font.size": 10.5, "font.family": "serif",
+    "figure.facecolor": "none", "axes.facecolor": "none",
+    "axes.edgecolor": "#E5E7EB", "axes.grid": True,
+    "grid.alpha": 0.4, "grid.color": "#F3F4F6", "grid.linestyle": "--",
+    "font.size": 11, "font.family": "sans-serif", "font.sans-serif": ["Inter", "Arial"],
     "axes.spines.top": False, "axes.spines.right": False,
+    "axes.spines.left": False, "axes.spines.bottom": True,
     "text.color": TXT, "axes.labelcolor": TXT2,
     "xtick.color": TXT3, "ytick.color": TXT3,
+    "xtick.bottom": False, "ytick.left": False,
 })
 
 # ── Floating mascot ──
