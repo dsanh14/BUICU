@@ -51,8 +51,17 @@ M64 = _mascot()
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600;700&display=swap');
 
-/* ── reset ── */
-.stApp {{ background:{BG}; }}
+/* ── reset & animated background ── */
+@keyframes bg-drift {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+}}
+.stApp {{ 
+    background: linear-gradient(-45deg, {BG}, #F3F4F6, #EEF2F6, {BG});
+    background-size: 400% 400%;
+    animation: bg-drift 15s ease infinite;
+}}
 #MainMenu, footer, header, section[data-testid="stSidebar"] {{ display:none !important; }}
 
 html, body, [class*="css"],
@@ -134,7 +143,12 @@ details[data-testid="stExpander"] summary p {{
 .stTabs [data-baseweb="tab-border"] {{ display:none !important; }}
 .stTabs [data-baseweb="tab-panel"] {{ padding-top:1.2rem; }}
 
-/* ── custom classes ── */
+/* ── custom classes & animations ── */
+@keyframes fade-in-up {{
+    0% {{ opacity: 0; transform: translateY(20px); }}
+    100% {{ opacity: 1; transform: translateY(0); }}
+}}
+
 .card {{
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(12px);
@@ -144,6 +158,7 @@ details[data-testid="stExpander"] summary p {{
     padding:2.5rem 3rem; 
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     margin-bottom:1.5rem;
+    animation: fade-in-up 0.8s ease-out forwards;
 }}
 .hero-num {{
     font-family:{SERIF}; font-size:5.5rem; font-weight:600;
@@ -236,10 +251,11 @@ details[data-testid="stExpander"] summary p {{
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     margin: 1rem 0 1.5rem 0;
     transition: box-shadow 0.3s ease, transform 0.3s ease;
+    animation: fade-in-up 1s ease-out forwards;
 }}
 .viz-card:hover {{
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
 }}
 
 /* ── concept cards ── */
@@ -431,35 +447,39 @@ details[data-testid="stExpander"] summary p {{
 }}
 
 @keyframes ft {{ 0%,3% {{ opacity:0; }} 5%,22% {{ opacity:1; }} 25%,100% {{ opacity:0; }} }}
-@keyframes fm-float {{ 0%,100% {{ transform:translateY(0); }} 50% {{ transform:translateY(-5px); }} }}
-@keyframes fm-pulse {{ 0% {{ opacity:0.5;transform:scale(1); }} 100% {{ opacity:0;transform:scale(1.6); }} }}
+@keyframes fm-float {{ 
+    0%,100% {{ transform:translateY(0); }} 
+    50% {{ transform:translateY(-8px); }} 
+}}
+@keyframes fm-breathe {{
+    0%, 100% {{ transform: scale(1); }}
+    50% {{ transform: scale(1.05); }}
+}}
+@keyframes fm-pulse {{ 0% {{ opacity:0.8;transform:scale(0.9); }} 100% {{ opacity:0;transform:scale(1.8); }} }}
 @keyframes fm-wiggle {{
     0%,90%,100% {{ transform:rotate(0deg); }}
-    93% {{ transform:rotate(-5deg); }}
-    96% {{ transform:rotate(5deg); }}
+    93% {{ transform:rotate(-8deg); }}
+    96% {{ transform:rotate(8deg); }}
 }}
 @keyframes fm-wave {{
     0% {{ transform:scale(1) rotate(0deg); }}
-    15% {{ transform:scale(1.1) rotate(-12deg); }}
-    30% {{ transform:scale(1.15) rotate(10deg); }}
-    45% {{ transform:scale(1.1) rotate(-8deg); }}
-    60% {{ transform:scale(1.12) rotate(5deg); }}
-    75% {{ transform:scale(1.1) rotate(-2deg); }}
-    100% {{ transform:scale(1.15) rotate(0deg); }}
+    25% {{ transform:scale(1.2) rotate(-15deg); }}
+    50% {{ transform:scale(1.15) rotate(15deg); }}
+    75% {{ transform:scale(1.2) rotate(-10deg); }}
+    100% {{ transform:scale(1.2) rotate(0deg); }}
 }}
 @keyframes fm-happy {{
     0% {{ transform:scale(1); }}
-    15% {{ transform:scale(1.2) translateY(-8px); }}
-    30% {{ transform:scale(1.05) translateY(0); }}
-    45% {{ transform:scale(1.15) translateY(-5px); }}
-    60% {{ transform:scale(1.05) translateY(0); }}
-    75% {{ transform:scale(1.1) translateY(-2px); }}
+    20% {{ transform:scale(1.25) translateY(-12px) rotate(-10deg); }}
+    40% {{ transform:scale(1.1) translateY(0) rotate(10deg); }}
+    60% {{ transform:scale(1.2) translateY(-8px) rotate(-5deg); }}
+    80% {{ transform:scale(1.1) translateY(-2px) rotate(5deg); }}
     100% {{ transform:scale(1.15) translateY(0); }}
 }}
 @keyframes fm-sparkle {{
-    0%,85%,100% {{ opacity:0; transform:scale(0); }}
-    90% {{ opacity:1; transform:scale(1); }}
-    95% {{ opacity:0.5; transform:scale(1.5) translateY(-4px); }}
+    0%,85%,100% {{ opacity:0; transform:scale(0) rotate(0deg); }}
+    90% {{ opacity:1; transform:scale(1.2) rotate(45deg); }}
+    95% {{ opacity:0; transform:scale(1.8) translateY(-10px) rotate(90deg); }}
 }}
 </style>""", unsafe_allow_html=True)
 
