@@ -22,18 +22,18 @@ st.set_page_config(page_title="BUICU", page_icon="\U0001F3E5",
                    layout="wide", initial_sidebar_state="collapsed")
 
 # ── palette ──
-BG   = "#F9FAFB"
-CARD = "#FFFFFF"
-TXT  = "#111827"
-TXT2 = "#4B5563"
-TXT3 = "#9CA3AF"
-BDR  = "#E5E7EB"
-BLUE = "#0A66C2"
-WARM = "#D97706"
-SAGE = "#059669"
-ROSE = "#DC2626"
+BG   = "#1A202C"       # Deep slate/navy
+CARD = "#2D3748"       # Lighter elevation
+TXT  = "#F1F5F9"       # Off-white
+TXT2 = "#94A3B8"       # Muted slate/gray
+TXT3 = "#64748B"       # Darker slate
+BDR  = "rgba(255, 255, 255, 0.15)" # Subtle border
+BLUE = "#22D3EE"       # Cyan accent
+WARM = "#F59E0B"       # Warm accent (Amber)
+SAGE = "#4ADE80"       # Mint green accent (like robots.rmrm.io)
+ROSE = "#F43F5E"       # Rose red accent
 
-SERIF = "'Playfair Display', Georgia, 'Times New Roman', serif"
+SERIF = "'JetBrains Mono', 'Fira Code', 'Courier New', monospace" # Changed to Monospace
 SANS  = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
 
 @st.cache_data
@@ -49,7 +49,7 @@ M64 = _mascot()
 # CSS
 # =====================================================================
 st.markdown(f"""<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 /* ── reset & animated background ── */
 @keyframes bg-drift {{
@@ -58,7 +58,7 @@ st.markdown(f"""<style>
     100% {{ background-position: 0% 50%; }}
 }}
 .stApp {{ 
-    background: linear-gradient(-45deg, {BG}, #F3F4F6, #EEF2F6, {BG});
+    background: linear-gradient(-45deg, {BG}, #121620, {BG}, #1E2333);
     background-size: 400% 400%;
     animation: bg-drift 15s ease infinite;
 }}
@@ -150,13 +150,13 @@ details[data-testid="stExpander"] summary p {{
 }}
 
 .card {{
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(30, 36, 48, 0.75);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius:24px;
     padding:2.5rem 3rem; 
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 15px -1px rgba(0, 0, 0, 0.2), 0 2px 8px -1px rgba(0, 0, 0, 0.15);
     margin-bottom:1.5rem;
     animation: fade-in-up 0.8s ease-out forwards;
 }}
@@ -171,10 +171,10 @@ details[data-testid="stExpander"] summary p {{
     color:{BLUE} !important; font-weight:500;
 }}
 .b-strip {{
-    font-family:{SANS}; border-left:3px solid {WARM}; background:#FAF7F2;
+    font-family:{SANS}; border-left:3px solid {WARM}; background:rgba(245, 158, 11, 0.1);
     border-radius:0 12px 12px 0; padding:1rem 1.3rem;
     margin-top:1.2rem; font-size:0.88rem; font-weight:400;
-    color:{TXT2} !important; line-height:1.7;
+    color:{TXT} !important; line-height:1.7;
 }}
 .narr {{
     font-family:{SANS}; font-size:1.05rem; font-weight:300;
@@ -204,10 +204,10 @@ details[data-testid="stExpander"] summary p {{
     top: 16px;
     z-index: 99;
     margin: 0 auto 1.5rem auto;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(45, 55, 72, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(229, 231, 235, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 999px;
     padding: 8px;
     display: flex;
@@ -242,13 +242,13 @@ details[data-testid="stExpander"] summary p {{
     margin-bottom: 0.4rem;
 }}
 .viz-card {{
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(30, 36, 48, 0.8);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 20px;
     padding: 1.2rem 1.2rem 0.5rem 1.2rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 15px -1px rgba(0, 0, 0, 0.2), 0 2px 8px -1px rgba(0, 0, 0, 0.1);
     margin: 1rem 0 1.5rem 0;
     transition: box-shadow 0.3s ease, transform 0.3s ease;
     animation: fade-in-up 1s ease-out forwards;
@@ -297,25 +297,27 @@ details[data-testid="stExpander"] summary p {{
 .m-note {{
     display:flex; align-items:flex-start; gap:10px;
     margin-top:1rem; padding:10px 14px;
-    background:#F5F4F1; border-radius:12px;
+    background:rgba(255,255,255,0.05); border-radius:12px;
 }}
 .m-note img {{
     width:28px; height:28px; border-radius:50%; flex-shrink:0; margin-top:1px;
     animation: mn-peek 0.5s ease-out both;
 }}
 .m-note:hover img {{ animation: mn-wiggle 0.4s ease-in-out; }}
-.m-note p {{ font-size:0.82rem; color:{TXT3} !important; line-height:1.55; margin:0; }}
+.m-note p {{ font-size:0.82rem; color:{TXT} !important; line-height:1.55; margin:0; }}
 
 /* ── mascot dialogue (bigger, inline) ── */
 .m-dialog {{
     display:flex; gap:16px; align-items:flex-start;
-    background:{CARD}; border:1px solid {BDR}; border-radius:16px;
+    background:rgba(255,255,255,0.03); border:1px solid {BDR}; border-radius:16px;
     padding:1.3rem 1.6rem; margin:1.5rem 0;
-    box-shadow:0 2px 8px rgba(0,0,0,0.03);
+    box-shadow:0 2px 8px rgba(0,0,0,0.2);
     animation: md-slide 0.45s ease-out both;
 }}
 .m-dialog img {{
     width:48px; height:48px; border-radius:50%; flex-shrink:0;
+    background: {CARD};
+    padding: 2px;
     animation: md-bounce 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;
 }}
 .m-dialog:hover img {{ animation: md-excited 0.5s ease-in-out; }}
@@ -359,23 +361,23 @@ details[data-testid="stExpander"] summary p {{
 
 /* ── interactive guess ── */
 .guess-card {{
-    background:{CARD}; border:2px dashed {BDR}; border-radius:18px;
+    background:rgba(255,255,255,0.02); border:2px dashed {BDR}; border-radius:18px;
     padding:2rem 2.4rem; text-align:center; margin:1rem 0 2rem 0;
 }}
-.guess-card h3 {{ margin:0 0 0.3rem 0; font-size:1.3rem; }}
+.guess-card h3 {{ margin:0 0 0.3rem 0; font-size:1.3rem; color:{TXT} !important; }}
 .guess-card p {{ color:{TXT2} !important; font-size:0.9rem; }}
 
 /* ── reveal card ── */
 .reveal {{
-    background:linear-gradient(135deg, #EEF2F6 0%, #F5F0EB 100%);
+    background:linear-gradient(135deg, rgba(34,211,238,0.1) 0%, rgba(74,222,128,0.1) 100%);
     border:1px solid {BDR}; border-radius:16px;
     padding:1.6rem 2rem; margin:1rem 0;
 }}
 .reveal .r-num {{
     font-family:{SERIF}; font-size:3.2rem; font-weight:600;
-    color:{BLUE} !important; letter-spacing:-0.02em;
+    color:{SAGE} !important; letter-spacing:-0.02em;
 }}
-.reveal .r-label {{ font-size:0.88rem; color:{TXT2} !important; margin-top:0.2rem; }}
+.reveal .r-label {{ font-size:0.88rem; color:{TXT} !important; margin-top:0.2rem; font-family:{SERIF}; }}
 
 /* ── floating mascot ── */
 .fm {{
@@ -413,11 +415,11 @@ details[data-testid="stExpander"] summary p {{
 }}
 .fm-spark.s1 {{ top:-4px; right:20px; animation: fm-sparkle 4s ease-out 0s infinite; }}
 .fm-spark.s2 {{ top:8px; right:-6px; animation: fm-sparkle 4s ease-out 1.3s infinite; }}
-.fm-spark.s3 {{ bottom:4px; right:-4px; animation: fm-sparkle 4s ease-out 2.6s infinite; background:{BLUE}; }}
+.fm-spark.s3 {{ bottom:4px; right:-4px; animation: fm-sparkle 4s ease-out 2.6s infinite; background:{SAGE}; }}
 .fm-bub {{
     position:absolute; bottom:68px; right:0;
     background:{CARD}; border:1px solid {BDR}; border-radius:14px;
-    padding:14px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.10);
+    padding:14px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.50);
     width:250px; min-height:48px;
     opacity:0; transform:translateY(8px) scale(0.94);
     transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1);
@@ -435,7 +437,7 @@ details[data-testid="stExpander"] summary p {{
 }}
 .fm-bub span {{
     position:absolute; inset:14px 18px; font-size:0.8rem;
-    color:{TXT2} !important; line-height:1.5; opacity:0; animation:ft 24s infinite;
+    color:{TXT} !important; line-height:1.5; opacity:0; animation:ft 24s infinite;
 }}
 .fm-bub .f1 {{ animation-delay:0s; }}
 .fm-bub .f2 {{ animation-delay:6s; }}
@@ -486,13 +488,13 @@ details[data-testid="stExpander"] summary p {{
 # ── Matplotlib ──
 plt.rcParams.update({
     "figure.facecolor": "none", "axes.facecolor": "none",
-    "axes.edgecolor": "#E5E7EB", "axes.grid": True,
-    "grid.alpha": 0.4, "grid.color": "#F3F4F6", "grid.linestyle": "--",
-    "font.size": 11, "font.family": "sans-serif", "font.sans-serif": ["Inter", "Arial"],
+    "axes.edgecolor": "#FFFFFF33", "axes.grid": True,  # 20% opacity white
+    "grid.alpha": 0.2, "grid.color": "#FFFFFF66", "grid.linestyle": "--", # 40% opacity white
+    "font.size": 11, "font.family": "monospace", "font.monospace": ["JetBrains Mono", "Fira Code", "Courier New"],
     "axes.spines.top": False, "axes.spines.right": False,
     "axes.spines.left": False, "axes.spines.bottom": True,
-    "text.color": TXT, "axes.labelcolor": TXT2,
-    "xtick.color": TXT3, "ytick.color": TXT3,
+    "text.color": TXT, "axes.labelcolor": TXT,
+    "xtick.color": TXT2, "ytick.color": TXT2,
     "xtick.bottom": False, "ytick.left": False,
 })
 
