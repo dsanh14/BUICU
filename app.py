@@ -36,7 +36,6 @@ ROSE = "#F43F5E"       # Rose red accent
 SERIF = "'JetBrains Mono', 'Fira Code', 'Courier New', monospace" # Changed to Monospace
 SANS  = "'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
 
-@st.cache_data
 def _mascot():
     p = os.path.join(os.path.dirname(__file__), "assets", "mascot.png")
     if os.path.exists(p):
