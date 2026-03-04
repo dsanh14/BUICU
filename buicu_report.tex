@@ -1,0 +1,537 @@
+\documentclass[12pt]{article}
+
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{float}
+
+\geometry{margin=1.25in}
+\setstretch{1.1}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+% ── title block ──────────────────────────────────────────────────────
+\title{\textbf{BUICU --- Belief Updating for ICU Crowding Under Uncertainty}}
+\author{Diego Sanchez}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+
+% ── opening paragraph (no section header, like the example) ──────────
+\noindent
+Intensive care units are perpetually on the edge. A single wave of patients
+can push a 50-bed unit from comfortable to catastrophic overnight, and the
+cost of being caught off-guard---delayed surgeries, hallway beds, exhausted
+staff---is measured in lives. For my CS109 challenge, I built \textit{BUICU}
+(Belief Updating for ICU Crowding Under Uncertainty): a Bayesian system
+that ingests daily admission counts, maintains a continuously updated
+probability distribution over the true arrival rate, and propagates that
+uncertainty all the way through to a calibrated forecast of crowding events.
+
+You can explore the live website at
+\url{https://buicu-cs109.streamlit.app}; the full source code is available
+at \url{https://github.com/diegosanchez/buicu}. I suggest experimenting
+with the interactive prior-explorer and the occupancy forecast sliders before
+reading further.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{The Problem, Formally}
+
+An ICU receives patients according to a process that is \emph{not}
+deterministic. Arrivals cluster during flu season, surge after mass-casualty
+events, and thin out on summer weekends. Any honest model must represent
+this uncertainty explicitly. We ask three questions:
+
+\begin{enumerate}[leftmargin=2em]
+    \item What is the current arrival rate $\lambda$, and how confident are we?
+    \item Given the current census (patients already in beds), what is the probability of exceeding capacity within the next 48 hours?
+    \item Which modelling assumptions matter most, and where does our model break down?
+\end{enumerate}
+
+To answer them we need two random variables and one simulation engine.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{The Probabilistic Model}
+
+Let $\lambda$ (admissions per day) be the \emph{true} arrival rate. We never
+observe $\lambda$ directly; we only see counts $k_1, k_2, \ldots, k_T$, where
+$k_t$ is the number of admissions on day $t$. We model each count as:
+\[
+    N_t \mid \lambda \;\sim\; \mathrm{Poisson}(\lambda \cdot \Delta t)
+\]
+where $\Delta t = 1$ day. The Poisson likelihood is natural here: arrivals are
+independent, memoryless events---each patient's decision to deteriorate is not
+causally linked to anyone else's.\footnote{This independence assumption is
+violated during infection waves and trauma surges; we return to this in the
+failure-mode analysis.}
+
+We place a \textbf{Gamma prior} on $\lambda$:
+\[
+    \lambda \;\sim\; \mathrm{Gamma}(\alpha_0,\, \beta_0)
+\]
+with $\alpha_0 = 2$ and $\beta_0 = 0.2$, giving a prior mean of
+$\alpha_0 / \beta_0 = 10$ admissions/day and a prior standard deviation of
+$\sqrt{\alpha_0}/\beta_0 \approx 7.1$---weakly informative and deliberately
+wide. The Gamma--Poisson pair is a conjugate family, meaning the posterior
+is another Gamma and the update is available in closed form. After observing
+$\sum k_t$ total arrivals over $T$ days:
+\[
+    \lambda \mid k_{1:T} \;\sim\; \mathrm{Gamma}\!\left(
+        \alpha_0 + \textstyle\sum_{t=1}^T k_t,\;\;
+        \beta_0 + T
+    \right)
+\]
+No Markov chain Monte Carlo, no variational approximation---the update is
+algebraically exact. Table~\ref{tab:rvs} summarises all random variables
+in the model.
+
+\begin{table}[H]
+\centering
+\caption{Random variables in BUICU.}
+\label{tab:rvs}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Variable} & \textbf{Distribution} & \textbf{Role} \\
+\midrule
+$\lambda$ & $\mathrm{Gamma}(\alpha_0, \beta_0)$ & Prior on arrival rate (per day) \\
+$N_t \mid \lambda$ & $\mathrm{Poisson}(\lambda \cdot \Delta t)$ & Observed admissions in window $\Delta t$ \\
+$\lambda \mid k_{1:T}$ & $\mathrm{Gamma}(\alpha_0 + \Sigma k,\; \beta_0 + T)$ & Posterior (exact conjugate) \\
+$N_{\text{future}}$ & $\mathrm{NegBin}\!\left(\alpha_\text{post},\; \tfrac{\beta_\text{post}}{\beta_\text{post}+\Delta t}\right)$ & Posterior predictive for future counts \\
+$L$ & Empirical / LogNormal mixture & Length of stay (hours) \\
+$O_t$ & Monte Carlo simulation & ICU occupancy at time $t$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{Sequential Bayesian Updating}
+
+The real power of the conjugate model is its natural fit to \emph{streaming}
+data. Each morning we receive yesterday's count $k_t$ and apply:
+\[
+    \alpha \;\leftarrow\; \alpha + k_t, \qquad \beta \;\leftarrow\; \beta + 1
+\]
+The posterior mean $\alpha/\beta$ drifts toward the empirical mean; the
+posterior variance $\alpha/\beta^2$ shrinks monotonically. Figure~1 traces
+this evolution over 180 simulated days, generated from a synthetic
+MIMIC-IV--calibrated dataset with two surge windows (days 30--50 and
+110--130, where the true rate is $1.8\times$ baseline).\footnote{We use
+synthetic data---calibrated to published MIMIC-IV statistics---for ethical
+reasons. Real ICU records contain protected health information. The
+synthetic generator preserves the statistical structure: non-homogeneous
+Poisson arrivals with diurnal and weekly modulation, log-normal
+length-of-stay mixture, and $\sim$2\% missing discharge timestamps.}
+
+During each update we also compute two diagnostic quantities. First, the
+\textbf{KL divergence} from the new posterior to the old:
+\[
+    \mathrm{KL}(P_\text{new} \;\|\; P_\text{old})
+    \;=\;
+    (\alpha_\text{new} - \alpha_\text{old})\,\psi(\alpha_\text{new})
+    - \ln\Gamma(\alpha_\text{new}) + \ln\Gamma(\alpha_\text{old})
+    + \alpha_\text{old}\!\left(\ln\beta_\text{new} - \ln\beta_\text{old}\right)
+    + \alpha_\text{new}\,\frac{\beta_\text{old} - \beta_\text{new}}{\beta_\text{new}}
+\]
+where $\psi$ is the digamma function. This closed-form expression quantifies
+how much information was gained from a single day's observation. Second, a
+\textbf{posterior predictive $p$-value}:
+\[
+    p_t \;=\; P(N \geq k_t \mid \text{previous posterior})
+    \;=\; 1 - F_{\mathrm{NegBin}}(k_t - 1;\; \alpha_{t-1},\; p)
+\]
+Days with $p_t < 0.025$ or $p_t > 0.975$ are flagged as \emph{anomalous}---
+observations the model found genuinely surprising. In our 180-day run, 17
+anomalous days were detected, heavily concentrated in the two surge windows.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{The Posterior Predictive Distribution}
+
+After observing $T$ days, we want to know: how many admissions should we
+expect tomorrow? The naive answer---plug in $\hat{\lambda} = \alpha/\beta$ and
+use a Poisson---ignores our remaining uncertainty about $\lambda$. The
+Bayesian answer integrates it out:
+\[
+    P(N_\text{future} = k) \;=\; \int_0^\infty \mathrm{Pois}(k;\; \lambda \Delta t)
+    \cdot \mathrm{Gamma}(\lambda;\; \alpha, \beta)\; d\lambda
+\]
+This integral has a closed form: the \textbf{Negative Binomial distribution}
+with parameters $r = \alpha$ and $p = \beta / (\beta + \Delta t)$:
+\[
+    N_\text{future} \;\sim\; \mathrm{NegBin}\!\left(\alpha,\; \frac{\beta}{\beta + \Delta t}\right)
+\]
+The NegBin is \emph{overdispersed} relative to a Poisson: its variance is
+$\alpha(\Delta t)/\beta + \alpha(\Delta t)^2/\beta^2$, reflecting both the
+irreducible Poisson randomness \emph{and} our uncertainty about $\lambda$.
+After 180 days, the posterior predictive 95\% interval for tomorrow's count
+is $[8, 16]$---wider than a Poisson with fixed $\lambda$ would predict, and
+appropriately so.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{The Windowed Model: Adapting to Non-Stationarity}
+
+The stationary model treats all 180 days of history equally. This is
+convenient but dangerous: a two-week surge that ended a month ago still
+pulls the posterior toward the elevated rate. We need the model to
+\emph{forget}.
+
+The \textbf{windowed Bayesian model} restricts the sufficient statistics to
+the last $W = 14$ days:
+\[
+    \alpha_t^{(W)} = \alpha_0 + \sum_{s = \max(1, t-W+1)}^{t} k_s,
+    \qquad
+    \beta_t^{(W)} = \beta_0 + \min(t, W)
+\]
+This is still exact conjugate inference---we have simply truncated the
+data. The trade-off is explicit: a smaller window reacts faster but
+has higher variance; a larger window is more stable but slower to detect
+regime changes. Using the \textbf{one-step-ahead log predictive score}
+as a proper scoring rule:
+\[
+    S_T = \sum_{t=2}^{T} \ln P(k_t \mid k_{1:t-1})
+    \;=\; \sum_{t=2}^{T} \ln\mathrm{NegBin}(k_t;\; \alpha_{t-1},\; p_{t-1})
+\]
+the windowed model outscores the stationary model by \textbf{39.4 log-score
+units} over 180 days. The gap is entirely attributable to the surge periods,
+where the stationary model assigns systematically low probability to elevated
+counts. A proper scoring rule cannot be gamed by overconfident
+or underconfident predictions; winning on this metric is an honest result.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{Prior Sensitivity: Evidence Overwhelms Belief}
+
+A common criticism of Bayesian inference is that the prior ``contaminates''
+the answer. To test this, we run three priors through the same 180-day
+dataset:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Prior} & $(\alpha_0, \beta_0)$ & \textbf{Prior mean} \\
+\midrule
+Uninformative & $(0.01, 0.001)$ & $\approx 10$ (nearly flat) \\
+Weakly informative & $(2.0,\; 0.2)$ & $10.0$ \\
+Strong but wrong & $(50.0,\; 10.0)$ & $5.0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+After 180 days, all three posteriors converge to a mean of approximately
+$11.7$ admissions/day with pairwise KL divergences below $10^{-3}$ nats.
+The ``wrong'' prior---which started with a confident but incorrect belief
+of $\lambda = 5$---required about 15 days to be overwritten by the data.
+This is the Bernstein--von Mises theorem in action: with sufficient data,
+the likelihood dominates the prior.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{Decomposing Uncertainty: Aleatoric vs. Epistemic}
+
+How much of our forecast uncertainty could be eliminated by collecting more
+data? The \textbf{Law of Total Variance} gives a precise answer. For
+$N_\text{future} \mid \lambda \sim \mathrm{Poisson}(\lambda \Delta t)$:
+\[
+    \mathrm{Var}[N_\text{future}]
+    \;=\;
+    \underbrace{E\!\left[\mathrm{Var}[N_\text{future} \mid \lambda]\right]}_{\text{aleatoric (stochastic)}}
+    +\;
+    \underbrace{\mathrm{Var}\!\left[E[N_\text{future} \mid \lambda]\right]}_{\text{epistemic (parameter)}}
+\]
+
+Both terms have closed forms for the Gamma--Poisson model:
+\[
+    E\!\left[\mathrm{Var}[N \mid \lambda]\right] = \Delta t \cdot \frac{\alpha}{\beta}
+    \qquad\text{(irreducible Poisson noise)}
+\]
+\[
+    \mathrm{Var}\!\left[E[N \mid \lambda]\right] = \Delta t^2 \cdot \frac{\alpha}{\beta^2}
+    \qquad\text{(uncertainty about }\lambda\text{)}
+\]
+
+After 180 days, the posterior has $\alpha \approx 2100$, $\beta \approx 180$.
+The epistemic fraction is:
+\[
+    \frac{\Delta t^2 \cdot \alpha/\beta^2}{\Delta t \cdot \alpha/\beta + \Delta t^2 \cdot \alpha/\beta^2}
+    = \frac{\Delta t / \beta}{1 + \Delta t/\beta}
+    \approx \frac{1/180}{1 + 1/180}
+    \approx 0.6\%
+\]
+
+\textbf{99.4\% of forecast uncertainty is irreducible Poisson noise.} No
+amount of additional data can reduce it. The only way to narrow the
+predictive interval is to change the underlying process---reduce arrival
+variability through triage protocols, for example. This is perhaps the
+most practically important result in the entire project.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{Monte Carlo Occupancy Forecasting}
+
+The arrival rate $\lambda$ determines how many patients enter the ICU; it
+says nothing about how long they stay. Occupancy at time $t$ is:
+\[
+    O_t \;=\; \sum_{i=1}^{N} \mathbf{1}\!\left[a_i \leq t < a_i + L_i\right]
+\]
+where $a_i$ is the admission time of patient $i$ and $L_i$ is their length
+of stay. Because $a_i$, $L_i$, and $N$ are all random, $O_t$ is itself a
+random variable whose distribution cannot be obtained analytically. We use
+Monte Carlo simulation:
+
+\begin{enumerate}[leftmargin=2em]
+    \item Sample $\lambda^{(s)} \sim \mathrm{Gamma}(\alpha_\text{post}, \beta_\text{post})$
+    \item Sample future arrivals $N^{(s)} \sim \mathrm{Poisson}(\lambda^{(s)} \cdot \Delta t)$ with uniform random arrival offsets
+    \item For each new patient, sample $L_i^{(s)}$ from the empirical LOS distribution (bootstrap resampling of observed stays)
+    \item Add the remaining LOS of the $n_0$ patients already in the ICU at the forecast time (deterministic, since they are currently observed)
+    \item Compute the census trajectory $O_t^{(s)}$ for $t \in [0, 48]$ hours
+\end{enumerate}
+
+Repeating for $S = 2000$ trajectories yields a full predictive distribution
+over occupancy at every future time step. Forecasting from day 36---a
+near-capacity snapshot at the onset of the first surge, with 38 of 50 beds
+occupied---produces a 48-hour crowding probability of \textbf{41.5\%}
+(95\% CI: 40\%--43\%), with peak mean occupancy reaching 44 patients.
+
+The bootstrap confidence interval on the 41.5\% estimate is constructed by
+resampling the 2000 peak-occupancy draws with replacement, giving a
+$\pm$1.5\% interval. This is uncertainty about our uncertainty: the Monte
+Carlo estimate itself has sampling error.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{Sensitivity Analysis}
+
+Which modelling assumptions drive the crowding probability? We vary three
+dimensions independently:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Scenario} & \textbf{P(overcrowded)} & \textbf{Change vs.\ baseline} \\
+\midrule
+Baseline (stationary $\lambda$, empirical LOS, 50 beds) & 41.5\% & --- \\
+Windowed arrival rate & 52.3\% & $+10.8$pp \\
+LOS truncated at p90 (no heavy tails) & 34.1\% & $-7.4$pp \\
+LOS tails inflated $\times 1.5$ & 48.9\% & $+7.4$pp \\
+Capacity $-20\%$ (40 beds) & 96.1\% & $+54.6$pp \\
+Capacity $+20\%$ (60 beds) & 9.0\% & $-32.5$pp \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The dominant driver is capacity. A 20\% reduction in available beds---
+plausible during a staffing shortage---raises the crowding probability from
+41\% to 96\%. LOS tail assumptions matter but are secondary. The choice
+of arrival-rate model (stationary vs.\ windowed) has an intermediate effect:
+the windowed model, correctly tracking the surge, predicts higher risk.
+This hierarchy tells administrators where to focus effort: protecting bed
+availability matters more than refining the arrival-rate model.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{Failure-Mode Analysis}
+
+A model that does not know how it fails is dangerous. We systematically
+audit five failure modes, each following the structure: \emph{assumption} $\to$
+\emph{how it breaks} $\to$ \emph{consequence} $\to$ \emph{mitigation}.
+
+\medskip
+\noindent\textbf{FM1 --- Non-stationarity.}\quad
+The Poisson model assumes a constant $\lambda$. The real ICU has surge
+windows where the arrival rate is $1.8\times$ baseline. The stationary
+posterior averages across regimes, underestimating crowding risk during
+surges and overestimating it during lulls. \emph{Detection:} a surge/normal
+ratio of 1.76 exceeds the 1.3 threshold. \emph{Mitigation:} the windowed
+model. \emph{CI widening:} $\times 1.23$.
+
+\medskip
+\noindent\textbf{FM2 --- Independence violations.}\quad
+The Poisson model treats each time window as independent. A lag-1
+autocorrelation of $r = 0.08$ in daily counts is detected, indicating
+mild clustering. More seriously, LOS tends to increase during crowding
+(boarding effect in real hospitals). \emph{Mitigation:} Hawkes process
+or autoregressive Poisson. \emph{CI widening:} $\times 1.02$.
+
+\medskip
+\noindent\textbf{FM3 --- Data quality.}\quad
+2.1\% of discharge timestamps are missing---not at random. Long-stay
+patients are more likely to have missing records (informative
+right-censoring), biasing the empirical LOS distribution downward.
+\emph{Mitigation:} Kaplan--Meier survival analysis. \emph{CI widening:} $\times 1.04$.
+
+\medskip
+\noindent\textbf{FM4 --- Heavy tails.}\quad
+The LOS distribution has excess kurtosis of 5.8, indicating that a few
+patients stay 20+ days. These rare but long stays create sustained
+periods of high occupancy that the empirical bootstrap may undersample.
+\emph{Mitigation:} Generalized Pareto fit to the upper tail; importance
+sampling. \emph{CI widening:} $\times 1.14$.
+
+\medskip
+\noindent\textbf{FM5 --- Goodhart's Law.}\quad
+If ICU staff use crowding forecasts to divert patients or accelerate
+discharges, the observed arrival rate reflects the \emph{managed} system,
+not the counterfactual. The model learns the managed rate and will
+underpredict crowding if interventions are removed---a dangerous
+oscillation. This failure mode cannot be empirically detected; we flag it
+unconditionally. \emph{CI widening:} $\times 1.05$.
+
+\medskip
+The five penalties compound multiplicatively, yielding a \textbf{combined
+CI widening factor of $\times 2.27$}. Applied to the 48-hour forecast, the
+model-limitation-adjusted interval for P(overcrowded) is 18\%--94\%---
+a stark reminder that a 41\% point estimate carries substantial structural
+uncertainty beyond its sampling variability.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{The Interactive Website}
+
+The Streamlit application at \url{https://buicu-cs109.streamlit.app}
+is structured as a narrative scroll. A visitor first encounters an
+\emph{interactive hook}: a slider asking them to guess the true arrival
+rate before any data is revealed. After locking in a guess, the posterior
+mean is exposed alongside a comparison verdict. In informal testing, most
+first-time users guess between 7 and 13 admissions/day; the model settles
+at 11.72.
+
+The remaining sections let visitors manipulate the prior parameters
+$\alpha_0$ and $\beta_0$, scrub through the 180-day update trajectory,
+and watch the prior--posterior comparison update in real time. The
+crowding-forecast section exposes two sliders---ICU capacity and forecast
+horizon---and recomputes the Monte Carlo estimate on demand (results are
+cached with \texttt{@st.cache\_data} so recomputation only triggers when
+inputs change). A capacity-sensitivity bar chart inside an expander shows
+P(overcrowded) at 80\%, 100\%, and 120\% of the current capacity.
+
+The model-evaluation tab offers a three-panel view: stationary vs.\
+windowed model trajectories with the log predictive score difference, MLE
+vs.\ Bayesian confidence intervals (demonstrating the wider-but-honest
+Bayesian interval early in the data), and the failure-mode accordion with
+expandable cards for each of the five failure modes.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{Key Results}
+
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Posterior arrival rate:} $\hat{\lambda} = 11.72$ admissions/day, 95\% CI $[11.23, 12.23]$.
+    \item \textbf{Model comparison:} windowed model wins by 39.4 log-score units over 180 days, entirely during surge periods.
+    \item \textbf{Variance decomposition:} after 180 days, 99.4\% of 1-day-ahead forecast variance is irreducible Poisson noise.
+    \item \textbf{Crowding probability:} 41.5\% within 48 hours from a near-capacity snapshot (day 36, 38/50 beds occupied).
+    \item \textbf{Capacity sensitivity:} removing 20\% of beds raises P(overcrowded) from 41.5\% to 96.1\%.
+    \item \textbf{Prior robustness:} all three priors converge to within 0.001 nats KL after 180 days.
+    \item \textbf{Anomaly detection:} 17 of 180 days flagged (94\% of flagged days fall within surge windows).
+    \item \textbf{Combined model-limitation CI widening:} $\times 2.27$ from five detected failure modes.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{CS109 Concepts Demonstrated}
+
+This single project touches 16 concepts from the CS109 curriculum, grouped
+by category:
+
+\medskip
+\noindent\textit{Probability Foundations:} random variables ($N_t$, $L$,
+$O_t$, $\lambda$); probability distributions (Poisson, Gamma, Negative
+Binomial, LogNormal); conditional probability $P(N_t \mid \lambda)$;
+Bayes' theorem applied as a conjugate update rule.
+
+\medskip
+\noindent\textit{Bayesian Inference:} posterior predictive distribution;
+conjugate priors with exact closed-form updates; Law of Total Variance
+(epistemic/aleatoric decomposition); Monte Carlo simulation (2,000+
+trajectories).
+
+\medskip
+\noindent\textit{Frequentist Methods:} maximum likelihood estimation
+$\hat{\lambda}_\text{MLE} = \Sigma k / T$; Central Limit Theorem for
+frequentist confidence intervals; KL divergence for information-gain
+quantification; hypothesis testing via posterior predictive $p$-values.
+
+\medskip
+\noindent\textit{Model Evaluation:} proper scoring rules (one-step-ahead
+log predictive score); calibration via coverage probabilities and
+probability integral transform histograms; sensitivity analysis mapping
+assumptions to conclusions; prior sensitivity demonstrating posterior
+convergence.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{Limitations and Future Work}
+
+\textbf{The discharge model is too simple.} We sample LOS independently
+from an empirical distribution, ignoring the well-documented
+\emph{boarding effect}: when the ICU is full, patients linger in the
+emergency department longer, artificially inflating $O_t$ by keeping beds
+occupied past their natural discharge time. Incorporating a feedback term
+$L_i(\text{occupancy})$ would materially sharpen the crowding forecast.
+
+\textbf{The arrival process is Poisson, not Hawkes.} Real ICU admissions
+exhibit positive autocorrelation: a trauma activates a cluster of related
+admissions (family members, bystanders). A \emph{Hawkes process}---a
+self-exciting Poisson process where each event triggers further events
+at a decaying rate---would model this clustering without abandoning the
+conjugate structure entirely.\footnote{A Bayesian Hawkes process still admits
+closed-form posteriors for the background rate; the branching ratio requires
+MCMC or variational inference.}
+
+\textbf{The windowed model discards information.} Using only the last 14
+days is the simplest cure for non-stationarity, but it throws away all
+historical context. A hierarchical model with a changepoint prior---or a
+particle filter over a regime-switching Poisson---would allow the model
+to both detect regime changes and retain memory within each regime.
+
+\textbf{No real validation.} Because we use synthetic data, we cannot
+compare the model's crowding forecasts against actual ICU outcomes.
+Validating on a real MIMIC-IV cohort---with proper IRB approval and
+de-identification---is the necessary next step before any clinical application.
+
+Despite these limitations, BUICU demonstrates something important: a
+probabilistic forecast that is \emph{honest about what it does not know}
+is more useful than a deterministic prediction that pretends certainty.
+Every number in BUICU carries a credible interval. The model knows when it
+is surprised. And when its assumptions break down, it says so---widening
+the interval rather than projecting false confidence.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection*{Ethical Reflection}
+
+A model that informs staffing decisions in a critical-care setting carries
+real ethical weight. Three safeguards are built into BUICU from the start.
+
+First, \textbf{synthetic data only}. Real ICU records contain protected
+health information. Using a synthetic generator---calibrated to published
+MIMIC-IV statistics but containing no real patient data---eliminates the
+privacy risk while preserving statistical realism.
+
+Second, \textbf{uncertainty is non-negotiable}. Every forecast is a
+distribution, never a point estimate. The website never says ``there will
+be 12 admissions tomorrow''; it says ``we expect between 8 and 16 with
+95\% probability''. Overconfident predictions in clinical settings have
+a name: malpractice.
+
+Third, \textbf{the model discloses its own failure modes}. The five failure
+modes are not an appendix; they are front-page content on the website,
+complete with detection evidence, severity ratings, and a combined
+uncertainty-widening factor. A model that cannot articulate how it fails
+should not be trusted.
+
+The feedback-loop failure mode deserves special emphasis. If staff
+use crowding forecasts to pre-emptively divert patients, the observed
+arrival rate reflects the \emph{managed} system. The model then learns the
+managed rate and lowers its future estimates---reducing perceived urgency
+and potentially triggering a dangerous relaxation of interventions. This is
+Goodhart's Law in its most literal form. BUICU must never be deployed for
+autonomous decision-making without explicit human oversight and a
+documented protocol for distinguishing managed from unmanaged arrival data.
+
+\end{document}
