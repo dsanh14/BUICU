@@ -45,7 +45,7 @@
 
 % ── Abstract ─────────────────────────────────────────────────────────
 \begin{abstract}
-\noindent We present BUICU, a fully Bayesian forecasting system for
+\noindent I present BUICU, a fully Bayesian forecasting system for
 intensive care unit crowding. Using conjugate Gamma--Poisson inference,
 BUICU maintains a continuously updated belief distribution over the
 patient arrival rate~$\lambda$ and propagates posterior uncertainty
@@ -57,7 +57,7 @@ attributable to regime changes. A Law-of-Total-Variance decomposition
 reveals that after sufficient observation, 99.4\% of forecast variance
 is irreducible Poisson noise, while sensitivity analysis demonstrates
 that bed capacity---not arrival-rate estimation---is the dominant driver
-of crowding risk. We deploy the model as an interactive Streamlit
+of crowding risk. I deploy the model as an interactive Streamlit
 application and systematically audit five failure modes, yielding a
 combined $\times 2.27$ confidence-interval widening factor that
 stretches the crowding probability range from a point estimate of
@@ -83,7 +83,7 @@ planner must answer:
 
 \begin{enumerate}
     \item What is the current patient arrival rate $\lambda$, and how
-          confident are we in that estimate?
+          how confident is that estimate?
     \item Given the current census, what is the probability of exceeding
           nominal capacity within the next 48~hours?
     \item Which modelling assumptions matter most---and where does the
@@ -94,7 +94,7 @@ The answer to (1) is exact Bayesian conjugate inference; the answer to
 (2) is Monte Carlo simulation that propagates every source of
 uncertainty; and the answer to (3) is a systematic failure-mode audit
 that compounds five identified limitations into a single, defensible
-uncertainty-widening factor. We demonstrate all three via an interactive
+uncertainty-widening factor. I demonstrate all three via an interactive
 web application that invites the reader to explore the model before
 (or instead of) reading the mathematics.
 
@@ -103,7 +103,7 @@ web application that invites the reader to explore the model before
 
 \subsection{Probabilistic Model}
 
-Let $k_t$ denote the number of admissions on day~$t$. We model each
+Let $k_t$ denote the number of admissions on day~$t$. I model each
 count as conditionally Poisson:
 \begin{equation}\label{eq:likelihood}
     N_t \mid \lambda \;\sim\; \mathrm{Poisson}(\lambda),
@@ -111,7 +111,7 @@ count as conditionally Poisson:
 an assumption grounded in the independence and memorylessness of
 individual patient deterioration events.\footnote{This independence
 assumption is violated during infection waves and trauma surges;
-Section~4.1 quantifies the impact.} We place a conjugate
+Section~4.1 quantifies the impact.} I place a conjugate
 \textbf{Gamma prior} on the unknown rate:
 \begin{equation}\label{eq:prior}
     \lambda \;\sim\; \mathrm{Gamma}(\alpha_0,\, \beta_0),
@@ -135,7 +135,7 @@ built-in measure of estimation confidence.
 
 \subsection{Posterior Predictive Distribution}
 
-The natural next question---\emph{how many patients should we expect
+The natural next question---\emph{how many patients should one expect
 tomorrow?}---has a Bayesian answer that integrates out residual
 parameter uncertainty rather than ignoring it:
 \begin{equation}\label{eq:predpred}
@@ -146,7 +146,7 @@ This integral evaluates to the \textbf{Negative Binomial} distribution
 with parameters $r = \alpha$ and $p = \beta/(\beta + \Delta t)$. The
 NegBin is overdispersed relative to a Poisson at the posterior mean:
 its variance reflects \emph{both} the irreducible Poisson randomness
-\emph{and} our remaining uncertainty about $\lambda$. After 180~days,
+\emph{and} the remaining uncertainty about $\lambda$. After 180~days,
 the posterior predictive 95\% interval for tomorrow's count is
 $[8,\, 16]$---wider than a fixed-$\lambda$ Poisson would suggest,
 and appropriately so.
@@ -156,7 +156,7 @@ and appropriately so.
 The stationary model treats all 180~days of history equally. This is
 convenient but dangerous: a two-week surge that ended a month ago still
 pulls the posterior toward the elevated rate. To let the model
-\emph{forget}, we restrict the sufficient statistics to the most recent
+\emph{forget}, I restrict the sufficient statistics to the most recent
 $W = 14$ days:
 \begin{equation}\label{eq:windowed}
     \alpha_t^{(W)} = \alpha_0 + \!\!\sum_{s=t-W+1}^{t} k_s, \quad
@@ -165,7 +165,7 @@ $W = 14$ days:
 This remains exact conjugate inference over a truncated dataset. The
 trade-off is explicit: smaller windows react faster but have higher
 variance; larger windows are more stable but slower to detect regime
-changes. We adjudicate with the \textbf{one-step-ahead log predictive
+changes. I adjudicate with the \textbf{one-step-ahead log predictive
 score}, a proper scoring rule that cannot be gamed by miscalibrated
 predictions:
 \begin{equation}\label{eq:logscore}
@@ -182,7 +182,7 @@ the admission time and $L_i$ is the length of stay (LOS). Because
 $a_i$, $L_i$, and the total count are all random, $O_t$ is a random
 variable whose distribution cannot be obtained analytically.
 
-For each of $S = 2{,}000$ Monte Carlo trajectories we:
+For each of $S = 2{,}000$ Monte Carlo trajectories I:
 (i)~sample $\lambda^{(s)}$ from the Gamma posterior;
 (ii)~draw future arrivals from $\mathrm{Poisson}(\lambda^{(s)} \Delta t)$
     with uniform random arrival offsets;
@@ -196,7 +196,7 @@ decision-making.
 
 \subsection{Uncertainty Decomposition}
 
-A critical question for resource planning: how much of our forecast
+A critical question for resource planning: how much of the forecast
 uncertainty could be eliminated by collecting more data? The
 \textbf{Law of Total Variance} provides a precise decomposition:
 \begin{equation}\label{eq:totvar}
@@ -212,7 +212,7 @@ about~$\lambda$ that shrinks with more data).
 % ── 3. Results ───────────────────────────────────────────────────────
 \section{Results}
 
-We evaluate on 180~days of synthetic data calibrated to published
+I evaluate on 180~days of synthetic data calibrated to published
 MIMIC-IV statistics, with two surge windows (days~30--50 and 110--130,
 rate~$1.8\times$ baseline) and a mixture LOS distribution.\footnote{Synthetic
 data is used for ethical reasons: real ICU records contain protected
@@ -300,7 +300,7 @@ more than refining the statistical model}.
 
 \subsection{Failure-Mode Audit}
 
-A model that does not know how it fails is dangerous. We
+A model that does not know how it fails is dangerous. I
 systematically audit five failure modes, each following the chain
 \emph{assumption $\to$ violation $\to$ consequence $\to$ mitigation}:
 
@@ -347,7 +347,7 @@ is needed before any clinical deployment.
 
 Three safeguards are non-negotiable. First, only synthetic data is used.
 Second, every forecast is a distribution---the website never says
-``there will be 12 admissions''; it says ``we expect 8--16 with 95\%
+``there will be 12 admissions''; it says ``expect 8--16 with 95\%
 probability.'' Third, failure modes are front-page content on the
 website, not a buried footnote. A model that informs staffing decisions
 in critical care and cannot articulate how it fails should not be
@@ -482,7 +482,7 @@ If ICU staff use crowding forecasts to divert patients or accelerate
 discharges, the observed arrival rate reflects the \emph{managed} system,
 not the counterfactual. The model learns the managed rate and will
 underpredict crowding if interventions are removed---a dangerous
-oscillation. This failure mode cannot be empirically detected; we flag it
+oscillation. This failure mode cannot be empirically detected; I flag it
 unconditionally. \emph{CI widening:} $\times 1.05$.
 
 \medskip\noindent The five penalties compound multiplicatively, yielding a
