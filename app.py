@@ -34,7 +34,7 @@ SAGE = "#4ADE80"       # Mint green accent (like robots.rmrm.io)
 ROSE = "#F43F5E"       # Rose red accent
 
 SERIF = "'JetBrains Mono', 'Fira Code', 'Courier New', monospace" # Changed to Monospace
-SANS  = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+SANS  = "'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
 
 @st.cache_data
 def _mascot():
@@ -49,7 +49,15 @@ M64 = _mascot()
 # CSS
 # =====================================================================
 st.markdown(f"""<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+
+::selection {{ background: {BLUE}; color: #000; }}
+::-moz-selection {{ background: {BLUE}; color: #000; }}
+
+::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+::-webkit-scrollbar-track {{ background: transparent; }}
+::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.2); border-radius: 4px; }}
+::-webkit-scrollbar-thumb:hover {{ background: {BLUE}; }}
 
 /* ── reset & animated background ── */
 @keyframes bg-drift {{
@@ -58,7 +66,7 @@ st.markdown(f"""<style>
     100% {{ background-position: 0% 50%; }}
 }}
 .stApp {{ 
-    background: linear-gradient(-45deg, {BG}, #121620, {BG}, #1E2333);
+    background: linear-gradient(-45deg, {BG}, #121620, {BG}, #1A2130);
     background-size: 400% 400%;
     animation: bg-drift 15s ease infinite;
 }}
@@ -106,42 +114,89 @@ h4,h5,h6 {{ font-family: {SANS} !important; font-weight: 600; color: {TXT} !impo
 .stApp span {{ color: inherit; }}
 
 /* ── metrics ── */
-[data-testid="stMetricValue"] {{ font-family:{SERIF} !important; font-size:1.5rem !important; font-weight:500 !important; color:{TXT} !important; }}
-[data-testid="stMetricLabel"] {{ font-family:{SANS} !important; font-size:0.72rem !important; font-weight:500 !important; color:{TXT3} !important; text-transform:uppercase; letter-spacing:0.06em; }}
-[data-testid="stMetricDelta"] {{ color:{TXT2} !important; }}
+[data-testid="stMetricValue"] {{ 
+    font-family:{SERIF} !important; 
+    font-size:1.8rem !important; 
+    font-weight:700 !important; 
+    color:{SAGE} !important; 
+    text-shadow: 0 0 12px rgba(74, 222, 128, 0.4); 
+    letter-spacing: -0.05em;
+}}
+[data-testid="stMetricLabel"] {{ 
+    font-family:{SANS} !important; 
+    font-size:0.75rem !important; 
+    font-weight:600 !important; 
+    color:{BLUE} !important; 
+    text-transform:uppercase; 
+    letter-spacing:0.08em; 
+}}
+[data-testid="stMetricDelta"] {{ color:{TXT} !important; opacity:0.8; }}
 
 /* ── expanders ── */
 details[data-testid="stExpander"] {{
-    border:1px solid {BDR} !important; border-radius:14px !important;
-    background:{CARD} !important; box-shadow:0 1px 4px rgba(0,0,0,0.03) !important;
-    margin-bottom:0.5rem !important;
+    border:1px solid rgba(255, 255, 255, 0.1) !important; 
+    border-radius:14px !important;
+    background:rgba(30,36,48,0.5) !important; 
+    backdrop-filter: blur(8px);
+    box-shadow:0 4px 15px rgba(0,0,0,0.1) !important;
+    margin-bottom:0.8rem !important;
+    transition: all 0.3s ease;
+}}
+details[data-testid="stExpander"]:hover {{
+    border-color: rgba(34, 211, 238, 0.3) !important;
+    box-shadow: 0 4px 20px rgba(34, 211, 238, 0.1) !important;
 }}
 details[data-testid="stExpander"] summary {{
-    font-family:{SANS} !important; font-weight:500 !important;
-    font-size:0.9rem !important;
+    font-family:{SANS} !important; font-weight:600 !important;
+    font-size:0.95rem !important; color: {TXT} !important;
 }}
 details[data-testid="stExpander"] summary p {{
-    font-family:{SANS} !important; font-size:0.9rem !important;
+    font-family:{SANS} !important; font-size:0.95rem !important;
 }}
 
 /* ── sub-tabs (model eval) ── */
 .stTabs [data-baseweb="tab-list"] {{
-    gap:0; background:{CARD}; border-radius:12px;
-    border:1px solid {BDR}; padding:3px; display:inline-flex;
+    gap:0; background:rgba(0,0,0,0.2); border-radius:12px;
+    border:1px solid rgba(255,255,255,0.08); padding:4px; display:inline-flex;
 }}
 .stTabs [data-baseweb="tab"] {{
-    border-radius:9px; padding:7px 20px; font-family:{SANS} !important;
-    font-size:0.83rem !important; font-weight:500 !important; color:{TXT3} !important;
+    border-radius:9px; padding:8px 22px; font-family:{SANS} !important;
+    font-size:0.85rem !important; font-weight:600 !important; color:{TXT3} !important;
+    transition: all 0.2s ease;
 }}
 .stTabs [data-baseweb="tab"] p {{ color:{TXT3} !important; }}
 .stTabs [aria-selected="true"] {{
-    background:{BG} !important; color:{TXT} !important;
-    box-shadow:0 1px 3px rgba(0,0,0,0.06);
+    background: rgba(34, 211, 238, 0.15) !important; 
+    border: 1px solid rgba(34, 211, 238, 0.3) !important;
+    color:{BLUE} !important;
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
 }}
-.stTabs [aria-selected="true"] p {{ color:{TXT} !important; }}
+.stTabs [aria-selected="true"] p {{ color:{BLUE} !important; }}
 .stTabs [data-baseweb="tab-highlight"] {{ background-color:transparent !important; }}
 .stTabs [data-baseweb="tab-border"] {{ display:none !important; }}
-.stTabs [data-baseweb="tab-panel"] {{ padding-top:1.2rem; }}
+.stTabs [data-baseweb="tab-panel"] {{ padding-top:1.5rem; }}
+
+/* ── Streamlit Form / Button / Slider adjustments ── */
+.stSlider [data-testid="stThumbValue"] {{ 
+    color: {BLUE} !important; font-family: {SERIF} !important; font-weight: bold; text-shadow: 0 0 8px rgba(34, 211, 238, 0.5); 
+}}
+.stButton>button {{
+    background: rgba(34, 211, 238, 0.1) !important;
+    border: 1px solid rgba(34, 211, 238, 0.5) !important;
+    color: {BLUE} !important;
+    font-family: {SANS} !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 999px !important;
+    transition: all 0.3s ease !important;
+}}
+.stButton>button:hover {{
+    background: {BLUE} !important;
+    color: #000 !important;
+    box-shadow: 0 0 15px rgba(34, 211, 238, 0.6) !important;
+    transform: translateY(-2px);
+}}
 
 /* ── custom classes & animations ── */
 @keyframes fade-in-up {{
@@ -161,10 +216,11 @@ details[data-testid="stExpander"] summary p {{
     animation: fade-in-up 0.8s ease-out forwards;
 }}
 .hero-num {{
-    font-family:{SERIF}; font-size:5.5rem; font-weight:600;
-    color:{BLUE} !important; line-height:1; letter-spacing:-0.03em;
+    font-family:{SERIF}; font-size:5.5rem; font-weight:800;
+    color:{BLUE} !important; line-height:1; letter-spacing:-0.05em;
+    text-shadow: 0 0 25px rgba(34, 211, 238, 0.4);
 }}
-.hero-label {{ font-family:{SANS}; font-size:1.05rem; font-weight:400; color:{TXT2} !important; margin-top:0.6rem; line-height:1.6; }}
+.hero-label {{ font-family:{SANS}; font-size:1.1rem; font-weight:300; color:{TXT} !important; margin-top:0.6rem; line-height:1.6; opacity:0.9; }}
 .hero-ci {{
     display:inline-block; margin-top:0.5rem; padding:5px 14px;
     background:#EEF2F6; border-radius:8px; font-size:0.85rem;
@@ -242,20 +298,21 @@ details[data-testid="stExpander"] summary p {{
     margin-bottom: 0.4rem;
 }}
 .viz-card {{
-    background: rgba(30, 36, 48, 0.8);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 36, 48, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 20px;
     padding: 1.2rem 1.2rem 0.5rem 1.2rem;
-    box-shadow: 0 4px 15px -1px rgba(0, 0, 0, 0.2), 0 2px 8px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px -1px rgba(0, 0, 0, 0.3);
     margin: 1rem 0 1.5rem 0;
-    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    transition: all 0.3s ease;
     animation: fade-in-up 1s ease-out forwards;
 }}
 .viz-card:hover {{
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 30px -5px rgba(34, 211, 238, 0.15);
     transform: translateY(-4px);
+    border-color: rgba(34, 211, 238, 0.3);
 }}
 
 /* ── concept cards ── */
@@ -361,23 +418,26 @@ details[data-testid="stExpander"] summary p {{
 
 /* ── interactive guess ── */
 .guess-card {{
-    background:rgba(255,255,255,0.02); border:2px dashed {BDR}; border-radius:18px;
+    background:rgba(30,36,48,0.3); border:2px dashed rgba(34, 211, 238, 0.4); border-radius:18px;
     padding:2rem 2.4rem; text-align:center; margin:1rem 0 2rem 0;
+    box-shadow: inset 0 0 20px rgba(34, 211, 238, 0.05);
 }}
-.guess-card h3 {{ margin:0 0 0.3rem 0; font-size:1.3rem; color:{TXT} !important; }}
-.guess-card p {{ color:{TXT2} !important; font-size:0.9rem; }}
+.guess-card h3 {{ margin:0 0 0.3rem 0; font-size:1.3rem; color:{BLUE} !important; font-family:{SERIF}; text-shadow:0 0 8px rgba(34,211,238,0.3); }}
+.guess-card p {{ color:{TXT} !important; font-size:0.9rem; opacity:0.8; }}
 
 /* ── reveal card ── */
 .reveal {{
-    background:linear-gradient(135deg, rgba(34,211,238,0.1) 0%, rgba(74,222,128,0.1) 100%);
-    border:1px solid {BDR}; border-radius:16px;
+    background:linear-gradient(135deg, rgba(34,211,238,0.1) 0%, rgba(74,222,128,0.15) 100%);
+    border:1px solid rgba(74,222,128,0.3); border-radius:16px;
     padding:1.6rem 2rem; margin:1rem 0;
+    box-shadow: 0 0 20px rgba(74,222,128,0.1);
 }}
 .reveal .r-num {{
-    font-family:{SERIF}; font-size:3.2rem; font-weight:600;
-    color:{SAGE} !important; letter-spacing:-0.02em;
+    font-family:{SERIF}; font-size:3.5rem; font-weight:800;
+    color:{SAGE} !important; letter-spacing:-0.05em;
+    text-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
 }}
-.reveal .r-label {{ font-size:0.88rem; color:{TXT} !important; margin-top:0.2rem; font-family:{SERIF}; }}
+.reveal .r-label {{ font-size:0.88rem; color:{TXT} !important; margin-top:0.2rem; font-family:{SANS}; text-transform:uppercase; letter-spacing:0.06em; opacity:0.8; }}
 
 /* ── floating mascot ── */
 .fm {{
