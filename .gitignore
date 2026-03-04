@@ -9,7 +9,6 @@ build/
 venv/
 env/
 output/
-*.png
 *.pdf
 *.csv
 .DS_Store
