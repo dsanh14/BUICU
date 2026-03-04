@@ -1200,12 +1200,7 @@ st.markdown("""
 - **Goodhart's Law** \u2014 a model that influences its target becomes unreliable
 """)
 
-mascot_says(
-    "If this model were deployed and hospitals started staffing based on it, "
-    "the arrival patterns might change in response. "
-    "That feedback loop would invalidate the model. "
-    "We flag this as <strong>Failure Mode 5</strong>."
-)
+
 
 st.markdown("</div>", unsafe_allow_html=True)
 
