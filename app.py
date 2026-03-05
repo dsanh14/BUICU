@@ -488,7 +488,7 @@ details[data-testid="stExpander"] summary p {{
 .fm-spark.s1 {{ top:-4px; right:20px; animation: fm-sparkle 4s ease-out 0s infinite; }}
 .fm-spark.s2 {{ top:8px; right:-6px; animation: fm-sparkle 4s ease-out 1.3s infinite; }}
 .fm-spark.s3 {{ bottom:4px; right:-4px; animation: fm-sparkle 4s ease-out 2.6s infinite; background:{SAGE}; }}
-.fm-bub {
+.fm-bub {{
     position:absolute; bottom:68px; right:0;
     background:#2D3748; border:1px solid rgba(255, 255, 255, 0.15); border-radius:14px;
     padding:14px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.50);
