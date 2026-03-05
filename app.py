@@ -1219,11 +1219,15 @@ if q:
             from google import genai
             import os
             
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if not api_key and hasattr(st.secrets, "GEMINI_API_KEY"):
+                api_key = st.secrets.GEMINI_API_KEY
+                
             # Verify API key exists
-            if not os.environ.get("GEMINI_API_KEY") and not hasattr(st.secrets, "GEMINI_API_KEY"):
+            if not api_key:
                 ans = "Oops! I encountered an error connecting to my brain. Please make sure your GEMINI_API_KEY environment variable is set or secrets.toml is configured!"
             else:
-                client = genai.Client()
+                client = genai.Client(api_key=api_key)
                 prompt = f"""You are a helpful robotic mascot for a web app called BUICU (Belief Updating for ICU Crowding Under Uncertainty), a CS109 challenge project.
 Your job is to answer the user's question concisely in 1-3 sentences.
 Focus on explaining terms related to Bayesian statistics, forecasting, or hospital operations. 
