@@ -1229,8 +1229,9 @@ if q:
             else:
                 client = genai.Client(api_key=api_key)
                 prompt = f"""You are a helpful robotic mascot for a web app called BUICU (Belief Updating for ICU Crowding Under Uncertainty), a CS109 challenge project.
-Your job is to answer the user's question concisely in 1-3 sentences.
-Focus on explaining terms related to Bayesian statistics, forecasting, or hospital operations. 
+BUICU's goal is to simulate how a hospital Intensive Care Unit (ICU) with 50 beds can forecast patient crowding using Bayesian statistics. It demonstrates how models can quantify uncertainty rather than just predicting a single number.
+Your job is to answer the user's question concisely in 1-4 sentences.
+Focus on explaining the BUICU project, its goals, or terms related to Bayesian statistics, forecasting, and hospital operations. 
 User question: {q}"""
                 response = client.models.generate_content(
                     model='gemini-2.5-flash',
