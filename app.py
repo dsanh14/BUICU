@@ -4,7 +4,7 @@ Narrative-driven, scroll-based interactive experience.
 Run:  streamlit run app.py
 """
 
-import base64, os
+import base64, os, io
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
@@ -604,6 +604,12 @@ def section(title, sub="", anchor="", kicker="SECTION"):
 def divider():
     st.markdown('<hr class="qdiv"/>', unsafe_allow_html=True)
 
+def styled_plot(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", transparent=True, bbox_inches="tight", dpi=150)
+    data = base64.b64encode(buf.getbuffer()).decode("ascii")
+    st.markdown(f'<div class="viz-card"><img src="data:image/png;base64,{data}" style="width:100%; height:auto;"></div>', unsafe_allow_html=True)
+
 def narrate(txt):
     st.markdown(f'<div class="narr">{txt}</div>', unsafe_allow_html=True)
 
@@ -811,9 +817,7 @@ ax.set_xlabel("Day"); ax.set_ylabel("\u03BB (admissions/day)")
 ax.set_title("Posterior Belief Evolution", fontsize=14, pad=14)
 ax.legend(fontsize=9, framealpha=0.85, loc="upper left")
 plt.tight_layout()
-st.markdown('<div class="viz-card">', unsafe_allow_html=True)
-st.pyplot(fig)
-st.markdown('</div>', unsafe_allow_html=True)
+styled_plot(fig)
 plt.close(fig)
 
 m1, m2, m3, m4 = st.columns(4)
@@ -879,9 +883,7 @@ if len(ut) > 1:
 axe.set_xlabel("Day"); axe.set_ylabel("\u03BB")
 axe.set_title("Belief Trajectory", fontsize=12)
 plt.tight_layout()
-st.markdown('<div class="viz-card">', unsafe_allow_html=True)
-st.pyplot(fig2)
-st.markdown('</div>', unsafe_allow_html=True)
+styled_plot(fig2)
 plt.close(fig2)
 
 mascot_says(
@@ -923,9 +925,7 @@ va2.fill_between(tt, vr["stochastic_frac"], 1, alpha=0.4, color=WARM, label="Epi
 va2.set_xlabel("Day"); va2.set_ylabel("Fraction"); va2.set_ylim(0, 1)
 va2.set_title("Composition", fontsize=12); va2.legend(fontsize=8.5)
 plt.tight_layout()
-st.markdown('<div class="viz-card">', unsafe_allow_html=True)
-st.pyplot(fig3)
-st.markdown('</div>', unsafe_allow_html=True)
+styled_plot(fig3)
 plt.close(fig3)
 
 vf = VarianceDecomposition.decompose_at_belief(ub)
@@ -975,9 +975,7 @@ ax4.set_xlabel("Hours ahead"); ax4.set_ylabel("Occupancy")
 ax4.set_title(f"{uhrs}-Hour Occupancy Forecast", fontsize=12)
 ax4.legend(fontsize=8.5)
 plt.tight_layout()
-st.markdown('<div class="viz-card">', unsafe_allow_html=True)
-st.pyplot(fig4)
-st.markdown('</div>', unsafe_allow_html=True)
+styled_plot(fig4)
 plt.close(fig4)
 
 pk = np.max(sr["trajectories"], axis=1)
@@ -990,9 +988,7 @@ with st.expander("Sensitivity: how does capacity change the risk?"):
     ax5.set_xlabel("P(overcrowded) %"); ax5.set_xlim(0, 100)
     ax5.set_title("Capacity Sensitivity", fontsize=10)
     plt.tight_layout()
-    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
-    st.pyplot(fig5)
-    st.markdown('</div>', unsafe_allow_html=True)
+    styled_plot(fig5)
     plt.close(fig5)
 
 mascot_says(
@@ -1033,9 +1029,7 @@ with et1:
     ax6.set_xlabel("Day"); ax6.set_ylabel("\u03BB")
     ax6.set_title("Two Bayesian Models", fontsize=12); ax6.legend(fontsize=8.5)
     plt.tight_layout()
-    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
-    st.pyplot(fig6)
-    st.markdown('</div>', unsafe_allow_html=True)
+    styled_plot(fig6)
     plt.close(fig6)
 
     sc = get_sc(daily_counts, np.array(model.history.alphas), np.array(model.history.betas),
@@ -1063,9 +1057,7 @@ with et2:
     a72.set_xlabel("Day"); a72.set_ylabel("Width"); a72.set_title("Interval Width", fontsize=12)
     a72.legend(fontsize=8.5)
     plt.tight_layout()
-    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
-    st.pyplot(fig7)
-    st.markdown('</div>', unsafe_allow_html=True)
+    styled_plot(fig7)
     plt.close(fig7)
 
     mascot_says(
@@ -1153,9 +1145,7 @@ with st.expander("Prior sensitivity: 3 different priors, same convergence"):
     ax9.set_xlabel("Day"); ax9.set_ylabel("\u03BB")
     ax9.set_title("All Priors Converge", fontsize=12); ax9.legend(fontsize=8.5)
     plt.tight_layout()
-    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
-    st.pyplot(fig9)
-    st.markdown('</div>', unsafe_allow_html=True)
+    styled_plot(fig9)
     plt.close(fig9)
     mnote("This is perhaps the most reassuring result: the data speaks louder than the prior.")
 
@@ -1169,9 +1159,7 @@ with st.expander("The probabilistic model"):
     al2.hist(vl, bins=80, density=True, color=WARM, alpha=0.4, edgecolor="white", lw=0.3)
     al2.set_yscale("log"); al2.set_xlabel("Days"); al2.set_title("LOS (log scale \u2014 heavy tail)", fontsize=10)
     plt.tight_layout()
-    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
-    st.pyplot(fig8)
-    st.markdown('</div>', unsafe_allow_html=True)
+    styled_plot(fig8)
     plt.close(fig8)
 
 divider()
