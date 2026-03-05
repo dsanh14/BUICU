@@ -1225,33 +1225,33 @@ if M64:
     
     if ans:
         bubble_html = f'''
-            <div class="fm-bub-inner">
-                <span class="static">{ans}</span>
-            </div>
-            <span class="tip-tag">Dismiss</span>'''
+<div class="fm-bub-inner">
+    <span class="static">{ans}</span>
+</div>
+<span class="tip-tag">Dismiss</span>'''
     else:
         bubble_html = '''
-            <div class="fm-bub-inner">
-                <span class="anim f1">Every number carries a credible interval. We never hide uncertainty.</span>
-                <span class="anim f2">After 180 days, 99% of forecast variance is irreducible Poisson noise.</span>
-                <span class="anim f3">The model knows what it doesn't know. Surprises widen the interval.</span>
-                <span class="anim f4">Beliefs update. Uncertainty narrows. That's Bayes' theorem.</span>
-            </div>
-            <span class="tip-tag" style="animation:none !important; opacity:0.5;">click to pin</span>'''
+<div class="fm-bub-inner">
+    <span class="anim f1">Every number carries a credible interval. We never hide uncertainty.</span>
+    <span class="anim f2">After 180 days, 99% of forecast variance is irreducible Poisson noise.</span>
+    <span class="anim f3">The model knows what it doesn't know. Surprises widen the interval.</span>
+    <span class="anim f4">Beliefs update. Uncertainty narrows. That's Bayes' theorem.</span>
+</div>
+<span class="tip-tag" style="animation:none !important; opacity:0.5;">click to pin</span>'''
 
     st.markdown(f"""
-    <div class="fm">
-        <input type="checkbox" id="fmck" class="fm-ck" {checked_attr}/>
-        <label for="fmck" class="fm-lbl">
-            <div class="fm-bub">
-                {bubble_html}
-            </div>
-            <div style="position:relative">
-                <img class="fm-img" src="data:image/png;base64,{M64}" alt=""/>
-                <div class="fm-ring"></div>
-                <div class="fm-spark s1"></div>
-                <div class="fm-spark s2"></div>
-                <div class="fm-spark s3"></div>
-            </div>
-        </label>
-    </div>""", unsafe_allow_html=True)
+<div class="fm">
+    <input type="checkbox" id="fmck" class="fm-ck" {checked_attr}/>
+    <label for="fmck" class="fm-lbl">
+        <div class="fm-bub">
+            {bubble_html}
+        </div>
+        <div style="position:relative">
+            <img class="fm-img" src="data:image/png;base64,{M64}" alt=""/>
+            <div class="fm-ring"></div>
+            <div class="fm-spark s1"></div>
+            <div class="fm-spark s2"></div>
+            <div class="fm-spark s3"></div>
+        </div>
+    </label>
+</div>""", unsafe_allow_html=True)
