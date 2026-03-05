@@ -1210,23 +1210,21 @@ Built with Bayesian inference, not black-box ML</p>
 q = st.chat_input("💬 Ask the Mascot about terms (e.g., Prior, Poisson, Surge, ICU, Census)...")
 ans = ""
 if q:
-    ql = q.lower()
-    if "prior" in ql: ans = "A prior is the probability distribution representing our initial beliefs before seeing any data."
-    elif "posterior" in ql: ans = "A posterior is the updated probability distribution after observing data. It combines our prior and likelihood."
-    elif "credible" in ql or "ci" in ql.split(): ans = "A credible interval tells us where the true value has a high probability (e.g., 95%) of falling, given the data."
-    elif "poisson" in ql: ans = "A Poisson process is used to model random events occurring at a constant average rate, like patient arrivals."
-    elif "surge" in ql: ans = "A surge is a sudden increase in the arrival rate. The model expects constant rates, so a surge requires rapid belief updating!"
-    elif "bayes" in ql: ans = "Bayes' theorem is the mathematical rule we use to update our beliefs as new data arrives."
-    elif "uncertainty" in ql: ans = "Uncertainty is inherent in forecasting! We quantify it explicitly rather than pretending we know exactly what will happen."
-    elif "icu" in ql.split() or "intensive care" in ql: ans = "ICU stands for Intensive Care Unit. It's a special hospital ward that provides intensive medical care. Our synthetic ICU has 50 beds."
-    elif "los" in ql.split() or "length of stay" in ql: ans = "LOS stands for Length of Stay. It is the number of hours or days a patient remains in the ICU before being discharged."
-    elif "census" in ql: ans = "The census is the total amount of patients currently occupying beds in the ICU. Tracking census helps us forecast crowding."
-    elif "capacity" in ql: ans = "Capacity refers to the maximum number of patients the ICU can safely accommodate. For this project, capacity is 50 beds."
-    elif "admission" in ql: ans = "An admission occurs when a new patient enters the ICU, increasing the current census."
-    elif "discharge" in ql: ans = "A discharge occurs when a patient leaves or is transferred from the ICU, opening up a bed."
-    elif "crowding" in ql: ans = "Crowding happens when the number of patients nears or exceeds the ICU's bed capacity."
-    elif "goodhart" in ql: ans = "Goodhart's Law states: 'When a measure becomes a target, it ceases to be a good measure.' If our forecast influences staffing, it alters the outcome it predicted."
-    else: ans = f"I'm not sure about '{q}'. Try asking me about 'ICU', 'Prior', 'Census', 'Credible Interval', or 'Surge'!"
+    with st.spinner("The Mascot is thinking..."):
+        try:
+            from google import genai
+            client = genai.Client()
+            prompt = f"""You are a helpful robotic mascot for a web app called BUICU (Belief Updating for ICU Crowding Under Uncertainty), a CS109 challenge project.
+Your job is to answer the user's question concisely in 1-3 sentences.
+Focus on explaining terms related to Bayesian statistics, forecasting, or hospital operations. 
+User question: {q}"""
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+            )
+            ans = response.text
+        except Exception as e:
+            ans = "Oops! I encountered an error connecting to my brain. Please make sure your GEMINI_API_KEY environment variable is set!"
 
 if M64:
     checked_attr = 'checked="checked"' if q else ''
