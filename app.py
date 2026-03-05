@@ -184,11 +184,15 @@ details[data-testid="stExpander"] summary p {{
     border: 1px solid rgba(34, 211, 238, 0.5) !important;
     color: {BLUE} !important;
     font-family: {SANS} !important;
-    font-weight: 600 !important;
+    font-weight: 800 !important;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border-radius: 999px !important;
     transition: all 0.3s ease !important;
+}}
+.stButton>button p {{
+    font-weight: 800 !important;
+    color: inherit !important;
 }}
 .stButton>button:hover {{
     background: {BLUE} !important;
@@ -600,7 +604,10 @@ def section(title, sub="", anchor="", kicker="SECTION"):
     html = ""
     if anchor:
         html += f'<span id="{anchor}" class="anchor"></span>'
-    html += f'<div class="sec-head"><div class="sec-kicker">{kicker}</div><h2>{title}</h2>'
+    html += '<div class="sec-head">'
+    if kicker:
+        html += f'<div class="sec-kicker">{kicker}</div>'
+    html += f'<h2>{title}</h2>'
     if sub:
         html += f'<p>{sub}</p>'
     html += '</div>'
@@ -684,10 +691,7 @@ sim_r, p_crowd, cur_occ, snap_day = get_sim(
 # =====================================================================
 st.markdown('<div class="content-shell">', unsafe_allow_html=True)
 st.markdown(f"""<div style="text-align:center; padding:3.5rem 1rem 1rem 1rem">
-<h1 style="font-size:3.2rem; margin:0; letter-spacing:-0.02em">BUICU</h1>
-<p style="color:{TXT3} !important; font-size:0.95rem; margin:0.5rem 0 0 0;
-font-family:{SANS}; font-weight:300">
-Belief Updating for ICU Crowding Under Uncertainty</p>
+<h1 style="font-size:3.2rem; margin:0; letter-spacing:-0.02em">Belief Updating for ICU Crowding Under Uncertainty</h1>
 <p style="color:{TXT3} !important; font-size:0.78rem; margin:0.3rem 0 0 0;
 font-family:{SANS}; font-weight:300">
 CS109 Challenge Project</p>
@@ -717,7 +721,7 @@ divider()
 # =====================================================================
 section("Can you guess the arrival rate?",
         "Before seeing any data, what's your intuition?",
-        anchor="guess", kicker="INTERACTIVE HOOK")
+        anchor="guess", kicker="")
 
 narrate(
     "This ICU sees a stream of admissions every day. "
@@ -765,7 +769,7 @@ else:
     <div style="margin-top:0.6rem; font-size:0.9rem; color:{v_color} !important; font-weight:600">{verdict}</div>
     <div style="font-size:0.8rem; color:{TXT3} !important; margin-top:0.3rem">
     Your guess: {user_guess:.1f} &nbsp;&middot;&nbsp; Bayesian: {true_lambda:.1f}
-    &nbsp;&middot;&nbsp; 95% CI: [{ci[0]:.1f}, {ci[1]:.1f}]</div>
+    &nbsp;&middot;&nbsp; 95% Credible Interval: [{ci[0]:.1f}, {ci[1]:.1f}]</div>
     </div>""", unsafe_allow_html=True)
 
     mascot_says(
@@ -776,9 +780,11 @@ else:
         f"That's Bayesian updating \u2014 beliefs shift toward evidence."
     )
 
-    if st.button("\U0001F504 Try again", key="reset_btn"):
-        st.session_state.guess_locked = False
-        st.rerun()
+    _, c_btn, _ = st.columns([1, 1, 1])
+    with c_btn:
+        if st.button("\U0001F504 Try again", key="reset_btn", use_container_width=True):
+            st.session_state.guess_locked = False
+            st.rerun()
 
 divider()
 
