@@ -479,39 +479,50 @@ details[data-testid="stExpander"] summary p {{
 .fm-spark.s1 {{ top:-4px; right:20px; animation: fm-sparkle 4s ease-out 0s infinite; }}
 .fm-spark.s2 {{ top:8px; right:-6px; animation: fm-sparkle 4s ease-out 1.3s infinite; }}
 .fm-spark.s3 {{ bottom:4px; right:-4px; animation: fm-sparkle 4s ease-out 2.6s infinite; background:{SAGE}; }}
-.fm-bub {{
+.fm-bub {
     position:absolute; bottom:68px; right:0;
     background:{CARD}; border:1px solid {BDR}; border-radius:14px;
-    padding:14px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.50);
-    width:250px; min-height:48px;
+    padding:14px 18px 24px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.50);
+    width:280px; min-height:48px; height:auto;
     opacity:0; transform:translateY(8px) scale(0.94);
     transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1);
     pointer-events:none;
-}}
-.fm-bub::after {{
+}
+.fm-bub::after {
     content:''; position:absolute; bottom:-7px; right:22px;
     width:12px; height:12px; background:{CARD};
     border-right:1px solid {BDR}; border-bottom:1px solid {BDR};
     transform:rotate(45deg);
-}}
+}
 .fm-lbl:hover .fm-bub,
-.fm-ck:checked + .fm-lbl .fm-bub {{
+.fm-ck:checked + .fm-lbl .fm-bub {
     opacity:1; transform:translateY(0) scale(1); pointer-events:auto;
-}}
-.fm-bub span {{
-    position:absolute; inset:14px 18px; font-size:0.8rem;
-    color:{TXT} !important; line-height:1.5; opacity:0; animation:ft 24s infinite;
-}}
-.fm-bub .f1 {{ animation-delay:0s; }}
-.fm-bub .f2 {{ animation-delay:6s; }}
-.fm-bub .f3 {{ animation-delay:12s; }}
-.fm-bub .f4 {{ animation-delay:18s; }}
-.fm-bub .tip-tag {{
+}
+.fm-bub-inner {
+    display: grid;
+    width: 100%;
+}
+.fm-bub-inner span {
+    grid-area: 1 / 1;
+    font-size:0.82rem;
+    color:{TXT} !important; line-height:1.5; opacity:0;
+}
+.fm-bub-inner span.anim {
+    animation:ft 24s infinite;
+}
+.fm-bub-inner span.static {
+    opacity:1; animation:none; font-weight: 500;
+}
+.fm-bub .f1 { animation-delay:0s; }
+.fm-bub .f2 { animation-delay:6s; }
+.fm-bub .f3 { animation-delay:12s; }
+.fm-bub .f4 { animation-delay:18s; }
+.fm-bub .tip-tag {
     position:absolute; bottom:8px; right:14px;
-    font-size:0.6rem; color:{TXT3} !important; opacity:0.5;
-}}
+    font-size:0.6rem; color:{TXT3} !important; opacity:0.5; animation:none !important;
+}
 
-@keyframes ft {{ 0%,3% {{ opacity:0; }} 5%,22% {{ opacity:1; }} 25%,100% {{ opacity:0; }} }}
+@keyframes ft { 0%,3% { opacity:0; } 5%,22% { opacity:1; } 25%,100% { opacity:0; } }
 @keyframes fm-float {{ 
     0%,100% {{ transform:translateY(0); }} 
     50% {{ transform:translateY(-8px); }} 
@@ -561,30 +572,7 @@ plt.rcParams.update({
     "xtick.bottom": False, "ytick.left": False,
 })
 
-# ── Floating mascot ──
-if M64:
-    st.markdown(f"""
-    <div class="fm">
-        <input type="checkbox" id="fmck" class="fm-ck"/>
-        <label for="fmck" class="fm-lbl">
-            <div class="fm-bub">
-                <span class="f1">Every number carries a credible interval. We never hide uncertainty.</span>
-                <span class="f2">After 180 days, 99% of forecast variance is irreducible Poisson noise.</span>
-                <span class="f3">The model knows what it doesn't know. Surprises widen the interval.</span>
-                <span class="f4">Beliefs update. Uncertainty narrows. That's Bayes' theorem.</span>
-                <span class="tip-tag">click to pin</span>
-            </div>
-            <div style="position:relative">
-                <img class="fm-img" src="data:image/png;base64,{M64}" alt=""/>
-                <div class="fm-ring"></div>
-                <div class="fm-spark s1"></div>
-                <div class="fm-spark s2"></div>
-                <div class="fm-spark s3"></div>
-            </div>
-        </label>
-    </div>""", unsafe_allow_html=True)
-
-
+# ── Mascot Helpers ──
 # ── Helpers ──
 def mnote(txt):
     if M64:
@@ -1217,3 +1205,54 @@ st.markdown(f"""
 BUICU &middot; CS109 Challenge Project &middot;
 Built with Bayesian inference, not black-box ML</p>
 </div>""", unsafe_allow_html=True)
+
+# ── Mascot Chatbot ──
+q = st.chat_input("💬 Ask the Mascot about terms (e.g., Prior, Poisson, Surge)...")
+if q:
+    ql = q.lower()
+    if "prior" in ql: ans = "A prior is the probability distribution representing our initial beliefs before seeing any data."
+    elif "posterior" in ql: ans = "A posterior is the updated probability distribution after observing data. It combines our prior and likelihood."
+    elif "credible" in ql or "ci" in ql.split(): ans = "A credible interval tells us where the true value has a high probability (e.g., 95%) of falling, given the data."
+    elif "poisson" in ql: ans = "A Poisson process is used to model random events occurring at a constant average rate, like patient arrivals."
+    elif "surge" in ql: ans = "A surge is a sudden increase in the arrival rate. The model expects constant rates, so a surge requires rapid belief updating!"
+    elif "bayes" in ql: ans = "Bayes' theorem is the mathematical rule we use to update our beliefs as new data arrives."
+    elif "uncertainty" in ql: ans = "Uncertainty is inherent in forecasting! We quantify it explicitly rather than pretending we know exactly what will happen."
+    else: ans = f"I'm not sure about '{q}'. Try asking me about 'Prior', 'Credible Interval', or 'Poisson'!"
+    st.session_state.mascot_ans = ans
+
+if M64:
+    ans = st.session_state.get("mascot_ans", "")
+    checked_attr = 'checked="checked"' if q else ''
+    
+    if ans:
+        bubble_html = f'''
+            <div class="fm-bub-inner">
+                <span class="static">{ans}</span>
+            </div>
+            <span class="tip-tag">Dismiss</span>'''
+    else:
+        bubble_html = '''
+            <div class="fm-bub-inner">
+                <span class="anim f1">Every number carries a credible interval. We never hide uncertainty.</span>
+                <span class="anim f2">After 180 days, 99% of forecast variance is irreducible Poisson noise.</span>
+                <span class="anim f3">The model knows what it doesn't know. Surprises widen the interval.</span>
+                <span class="anim f4">Beliefs update. Uncertainty narrows. That's Bayes' theorem.</span>
+            </div>
+            <span class="tip-tag" style="animation:none !important; opacity:0.5;">click to pin</span>'''
+
+    st.markdown(f"""
+    <div class="fm">
+        <input type="checkbox" id="fmck" class="fm-ck" {checked_attr}/>
+        <label for="fmck" class="fm-lbl">
+            <div class="fm-bub">
+                {bubble_html}
+            </div>
+            <div style="position:relative">
+                <img class="fm-img" src="data:image/png;base64,{M64}" alt=""/>
+                <div class="fm-ring"></div>
+                <div class="fm-spark s1"></div>
+                <div class="fm-spark s2"></div>
+                <div class="fm-spark s3"></div>
+            </div>
+        </label>
+    </div>""", unsafe_allow_html=True)
