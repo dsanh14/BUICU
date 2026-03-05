@@ -514,12 +514,14 @@ details[data-testid="stExpander"] summary p {{
 .fm-bub-inner span {{
     grid-area: 1 / 1;
     font-size:0.82rem;
-    color:{TXT} !important; line-height:1.5; opacity:0;
+    color:{TXT}}
+.fm-bub-inner span.static {{
+    opacity:1; animation:none; font-weight: 500;
 }}
-.fm-bub .tip-tag {
+.fm-bub .tip-tag {{
     position:absolute; bottom:8px; right:14px;
     font-size:0.6rem; color:#64748B !important; opacity:0.5; animation:none !important;
-}
+}}
 
 @keyframes fm-float {
     0%,100% {{ transform:translateY(0); }} 
