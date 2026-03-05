@@ -140,16 +140,16 @@ details[data-testid="stExpander"] {{
     box-shadow:0 4px 15px rgba(0,0,0,0.1) !important;
     margin-bottom:0.8rem !important;
     transition: all 0.3s ease;
-}
-[data-testid="stDialog"] > div, [data-testid="stModal"] > div {
+}}
+[data-testid="stDialog"] > div, [data-testid="stModal"] > div {{
     background-color: #1A202C !important;
-}
-[data-testid="stHeader"] { background: transparent !important; }
-[data-testid="stHeader"] svg, .stApp svg {
+}}
+[data-testid="stHeader"] {{ background: transparent !important; }}
+[data-testid="stHeader"] svg, .stApp svg {{
     fill: #F1F5F9 !important;
     color: #F1F5F9 !important;
-}
-details[data-testid="stExpander"]:hover {
+}}
+details[data-testid="stExpander"]:hover {{
     border-color: rgba(34, 211, 238, 0.3) !important;
     box-shadow: 0 4px 20px rgba(34, 211, 238, 0.1) !important;
 }}
@@ -162,11 +162,11 @@ details[data-testid="stExpander"] summary p {{
 }}
 
 /* ── sub-tabs (model eval) ── */
-.stTabs [data-baseweb="tab-list"] {
+.stTabs [data-baseweb="tab-list"] {{
     gap:4px; background:rgba(0,0,0,0.2); border-radius:12px;
     border:1px solid rgba(255,255,255,0.08); padding:4px; 
     display:flex; flex-wrap: wrap; justify-content: center;
-}
+}}
 .stTabs [data-baseweb="tab"] {{
     border-radius:9px; padding:8px 22px; font-family:{SANS} !important;
     font-size:0.85rem !important; font-weight:600 !important; color:{TXT3} !important;
@@ -514,7 +514,8 @@ details[data-testid="stExpander"] summary p {{
 .fm-bub-inner span {{
     grid-area: 1 / 1;
     font-size:0.82rem;
-    color:{TXT}}
+    color:{TXT} !important; line-height:1.5; opacity:0;
+}}
 .fm-bub-inner span.static {{
     opacity:1; animation:none; font-weight: 500;
 }}
@@ -523,7 +524,7 @@ details[data-testid="stExpander"] summary p {{
     font-size:0.6rem; color:#64748B !important; opacity:0.5; animation:none !important;
 }}
 
-@keyframes fm-float {
+@keyframes fm-float {{
     0%,100% {{ transform:translateY(0); }} 
     50% {{ transform:translateY(-8px); }} 
 }}
