@@ -680,7 +680,7 @@ sim_r, p_crowd, cur_occ, snap_day = get_sim(
 st.markdown('<div class="content-shell">', unsafe_allow_html=True)
 st.markdown(f"""<div style="text-align:center; padding:3.5rem 1rem 1rem 1rem">
 <h1 style="font-size:3.2rem; margin:0; letter-spacing:-0.02em; 
-color:{TXT}; text-shadow: 0 0 10px {BLUE}, 0 0 20px {BLUE}, 0 0 30px {BLUE};">
+color:{TXT}; text-shadow: 0 0 12px {BLUE};">
 Belief Updating for ICU Crowding Under Uncertainty</h1>
 <p style="color:{TXT3} !important; font-size:0.78rem; margin:0.3rem 0 0 0;
 font-family:{SANS}; font-weight:300">
