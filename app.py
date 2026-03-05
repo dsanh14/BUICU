@@ -140,8 +140,16 @@ details[data-testid="stExpander"] {{
     box-shadow:0 4px 15px rgba(0,0,0,0.1) !important;
     margin-bottom:0.8rem !important;
     transition: all 0.3s ease;
-}}
-details[data-testid="stExpander"]:hover {{
+}
+[data-testid="stDialog"] > div, [data-testid="stModal"] > div {
+    background-color: #1A202C !important;
+}
+[data-testid="stHeader"] { background: transparent !important; }
+[data-testid="stHeader"] svg, .stApp svg {
+    fill: #F1F5F9 !important;
+    color: #F1F5F9 !important;
+}
+details[data-testid="stExpander"]:hover {
     border-color: rgba(34, 211, 238, 0.3) !important;
     box-shadow: 0 4px 20px rgba(34, 211, 238, 0.1) !important;
 }}
@@ -154,10 +162,11 @@ details[data-testid="stExpander"] summary p {{
 }}
 
 /* ── sub-tabs (model eval) ── */
-.stTabs [data-baseweb="tab-list"] {{
-    gap:0; background:rgba(0,0,0,0.2); border-radius:12px;
-    border:1px solid rgba(255,255,255,0.08); padding:4px; display:inline-flex;
-}}
+.stTabs [data-baseweb="tab-list"] {
+    gap:4px; background:rgba(0,0,0,0.2); border-radius:12px;
+    border:1px solid rgba(255,255,255,0.08); padding:4px; 
+    display:flex; flex-wrap: wrap; justify-content: center;
+}
 .stTabs [data-baseweb="tab"] {{
     border-radius:9px; padding:8px 22px; font-family:{SANS} !important;
     font-size:0.85rem !important; font-weight:600 !important; color:{TXT3} !important;
@@ -479,10 +488,10 @@ details[data-testid="stExpander"] summary p {{
 .fm-spark.s1 {{ top:-4px; right:20px; animation: fm-sparkle 4s ease-out 0s infinite; }}
 .fm-spark.s2 {{ top:8px; right:-6px; animation: fm-sparkle 4s ease-out 1.3s infinite; }}
 .fm-spark.s3 {{ bottom:4px; right:-4px; animation: fm-sparkle 4s ease-out 2.6s infinite; background:{SAGE}; }}
-.fm-bub {{
+.fm-bub {
     position:absolute; bottom:68px; right:0;
-    background:{CARD}; border:1px solid {BDR}; border-radius:14px;
-    padding:14px 18px 24px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.50);
+    background:#2D3748; border:1px solid rgba(255, 255, 255, 0.15); border-radius:14px;
+    padding:14px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.50);
     width:280px; min-height:48px; height:auto;
     opacity:0; transform:translateY(8px) scale(0.94);
     transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1);
@@ -507,23 +516,12 @@ details[data-testid="stExpander"] summary p {{
     font-size:0.82rem;
     color:{TXT} !important; line-height:1.5; opacity:0;
 }}
-.fm-bub-inner span.anim {{
-    animation:ft 24s infinite;
-}}
-.fm-bub-inner span.static {{
-    opacity:1; animation:none; font-weight: 500;
-}}
-.fm-bub .f1 {{ animation-delay:0s; }}
-.fm-bub .f2 {{ animation-delay:6s; }}
-.fm-bub .f3 {{ animation-delay:12s; }}
-.fm-bub .f4 {{ animation-delay:18s; }}
-.fm-bub .tip-tag {{
+.fm-bub .tip-tag {
     position:absolute; bottom:8px; right:14px;
-    font-size:0.6rem; color:{TXT3} !important; opacity:0.5; animation:none !important;
-}}
+    font-size:0.6rem; color:#64748B !important; opacity:0.5; animation:none !important;
+}
 
-@keyframes ft {{ 0%,3% {{ opacity:0; }} 5%,22% {{ opacity:1; }} 25%,100% {{ opacity:0; }} }}
-@keyframes fm-float {{ 
+@keyframes fm-float {
     0%,100% {{ transform:translateY(0); }} 
     50% {{ transform:translateY(-8px); }} 
 }}
@@ -1203,10 +1201,7 @@ if M64:
         <label for="fmck" class="fm-lbl">
             <div class="fm-bub">
                 <div class="fm-bub-inner">
-                    <span class="anim f1">Every number carries a credible interval. We never hide uncertainty.</span>
-                    <span class="anim f2">After 180 days, 99% of forecast variance is irreducible Poisson noise.</span>
-                    <span class="anim f3">The model knows what it doesn't know. Surprises widen the interval.</span>
-                    <span class="anim f4">Beliefs update. Uncertainty narrows. That's Bayes' theorem.</span>
+                    <span class="static">Every number carries a credible interval. The model knows what it doesn't know, and we never hide uncertainty.</span>
                 </div>
                 <span class="tip-tag" style="animation:none !important; opacity:0.5;">click to pin</span>
             </div>
