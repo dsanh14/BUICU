@@ -1208,6 +1208,7 @@ Built with Bayesian inference, not black-box ML</p>
 
 # ── Mascot Chatbot ──
 q = st.chat_input("💬 Ask the Mascot about terms (e.g., Prior, Poisson, Surge)...")
+ans = ""
 if q:
     ql = q.lower()
     if "prior" in ql: ans = "A prior is the probability distribution representing our initial beliefs before seeing any data."
@@ -1218,10 +1219,8 @@ if q:
     elif "bayes" in ql: ans = "Bayes' theorem is the mathematical rule we use to update our beliefs as new data arrives."
     elif "uncertainty" in ql: ans = "Uncertainty is inherent in forecasting! We quantify it explicitly rather than pretending we know exactly what will happen."
     else: ans = f"I'm not sure about '{q}'. Try asking me about 'Prior', 'Credible Interval', or 'Poisson'!"
-    st.session_state.mascot_ans = ans
 
 if M64:
-    ans = st.session_state.get("mascot_ans", "")
     checked_attr = 'checked="checked"' if q else ''
     
     if ans:
