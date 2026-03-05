@@ -1208,91 +1208,26 @@ BUICU &middot; CS109 Challenge Project &middot;
 Built with Bayesian inference, not black-box ML</p>
 </div>""", unsafe_allow_html=True)
 
-# ── Mascot Chatbot ──
-if "chat_open" not in st.session_state:
-    st.session_state.chat_open = False
-
-ans = ""
-q = st.chat_input("💬 Ask the Mascot about terms (e.g., Prior, Poisson, Surge, ICU, Census)...")
-
-if q:
-    with st.spinner("The Mascot is thinking..."):
-        try:
-            from google import genai
-            import os
-            
-            api_key = os.environ.get("GEMINI_API_KEY")
-            if not api_key and hasattr(st.secrets, "GEMINI_API_KEY"):
-                api_key = st.secrets.GEMINI_API_KEY
-                
-            # Verify API key exists
-            if not api_key:
-                ans = "Oops! I encountered an error connecting to my brain. Please make sure your GEMINI_API_KEY environment variable is set or secrets.toml is configured!"
-            else:
-                client = genai.Client(api_key=api_key)
-                prompt = f"""You are a helpful robotic mascot for a web app called BUICU (Belief Updating for ICU Crowding Under Uncertainty), a CS109 challenge project.
-BUICU's goal is to simulate how a hospital Intensive Care Unit (ICU) with 50 beds can forecast patient crowding using Bayesian statistics. It demonstrates how models can quantify uncertainty rather than just predicting a single number.
-Your job is to answer the user's question concisely in 1-4 sentences.
-Focus on explaining the BUICU project, its goals, or terms related to Bayesian statistics, forecasting, and hospital operations. 
-User question: {q}"""
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=prompt,
-                )
-                ans = response.text
-                st.session_state.chat_open = True
-        except Exception as e:
-            ans = f"My brain had a hiccup! Error: {str(e)}"
-            st.session_state.chat_open = True
-
 if M64:
-    # Mascot toggle logic
-    col1, col2 = st.columns([10, 1])
-    with col2:
-        if st.button("\U0001F916 Chat", key="mascot_btn", help="Click to chat with the Mascot!", use_container_width=True):
-            st.session_state.chat_open = not st.session_state.chat_open
-            st.rerun()
-
-    checked_attr = 'checked="checked"' if q or st.session_state.chat_open else ''
-    
-    if st.session_state.chat_open:
-        st.markdown("""<style>
-        .stChatInput { display: block !important; margin-bottom: 80px; }
-        </style>""", unsafe_allow_html=True)
-    else:
-        st.markdown("""<style>
-        .stChatInput { display: none !important; }
-        </style>""", unsafe_allow_html=True)
-
-    if ans:
-        bubble_html = f'''
-<div class="fm-bub-inner">
-    <span class="static">{ans}</span>
-</div>
-<span class="tip-tag">Dismiss</span>'''
-    else:
-        bubble_html = '''
-<div class="fm-bub-inner">
-    <span class="anim f1">Every number carries a credible interval. We never hide uncertainty.</span>
-    <span class="anim f2">After 180 days, 99% of forecast variance is irreducible Poisson noise.</span>
-    <span class="anim f3">The model knows what it doesn't know. Surprises widen the interval.</span>
-    <span class="anim f4">Beliefs update. Uncertainty narrows. That's Bayes' theorem.</span>
-</div>
-<span class="tip-tag" style="animation:none !important; opacity:0.5;">click to pin</span>'''
-
     st.markdown(f"""
-<div class="fm">
-    <input type="checkbox" id="fmck" class="fm-ck" {checked_attr}/>
-    <label for="fmck" class="fm-lbl">
-        <div class="fm-bub">
-            {bubble_html}
-        </div>
-        <div style="position:relative">
-            <img class="fm-img" src="data:image/png;base64,{M64}" alt=""/>
-            <div class="fm-ring"></div>
-            <div class="fm-spark s1"></div>
-            <div class="fm-spark s2"></div>
-            <div class="fm-spark s3"></div>
-        </div>
-    </label>
-</div>""", unsafe_allow_html=True)
+    <div class="fm">
+        <input type="checkbox" id="fmck" class="fm-ck"/>
+        <label for="fmck" class="fm-lbl">
+            <div class="fm-bub">
+                <div class="fm-bub-inner">
+                    <span class="anim f1">Every number carries a credible interval. We never hide uncertainty.</span>
+                    <span class="anim f2">After 180 days, 99% of forecast variance is irreducible Poisson noise.</span>
+                    <span class="anim f3">The model knows what it doesn't know. Surprises widen the interval.</span>
+                    <span class="anim f4">Beliefs update. Uncertainty narrows. That's Bayes' theorem.</span>
+                </div>
+                <span class="tip-tag" style="animation:none !important; opacity:0.5;">click to pin</span>
+            </div>
+            <div style="position:relative">
+                <img class="fm-img" src="data:image/png;base64,{M64}" alt=""/>
+                <div class="fm-ring"></div>
+                <div class="fm-spark s1"></div>
+                <div class="fm-spark s2"></div>
+                <div class="fm-spark s3"></div>
+            </div>
+        </label>
+    </div>""", unsafe_allow_html=True)
