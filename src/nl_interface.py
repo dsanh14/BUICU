@@ -38,7 +38,7 @@ def explain_current_belief(belief: BeliefState, prior_mean: float) -> str:
         f"{100 * magnitude:.1f}% relative to the prior expectation "
         f"({prior_mean:.2f}/day).",
         "",
-        f"  Interpretation: After observing the data, we believe the true "
+        f"  Interpretation: After observing the data, I believe the true "
         f"arrival rate lies between {ci[0]:.2f} and {ci[1]:.2f} admissions "
         f"per day with 95% probability. The posterior has concentrated "
         f"around {belief.mean:.2f} as evidence accumulated.",
@@ -164,7 +164,7 @@ def explain_posterior_predictive(k_values: np.ndarray, pmf: np.ndarray,
         "",
         "This distribution integrates over uncertainty in the arrival rate λ.",
         "It is wider than a Poisson with fixed λ because it accounts for the "
-        "fact that we do not know λ exactly — only its posterior distribution.",
+        "fact that I do not know λ exactly — only its posterior distribution.",
     ]
     return "\n".join(lines)
 
@@ -191,12 +191,12 @@ def generate_writeup_sections(belief: BeliefState, prior_mean: float,
     s.append("ABSTRACT")
     s.append(sep)
     s.append(
-        "We model ICU crowding as a stochastic process using Bayesian inference "
-        "over a Gamma-Poisson conjugate model. Our system performs sequential "
+        "I model ICU crowding as a stochastic process using Bayesian inference "
+        "over a Gamma-Poisson conjugate model. My system performs sequential "
         "belief updating as new admission data arrives, propagates parameter "
         "uncertainty through Monte Carlo simulation of occupancy trajectories, "
         "and computes calibrated probabilistic forecasts of crowding events. "
-        "We compare a stationary model against a windowed (adaptive) model "
+        "I compare a stationary model against a windowed (adaptive) model "
         "using proper scoring rules, demonstrate prior sensitivity convergence, "
         "quantify information gain via KL divergence, detect anomalous "
         "observations via posterior predictive p-values, and systematically "
@@ -232,7 +232,7 @@ def generate_writeup_sections(belief: BeliefState, prior_mean: float,
         "   variance. Directly addresses the non-stationarity failure mode.\n"
         "\n"
         "4. Occupancy Simulation (Monte Carlo)\n"
-        "   For each of 3000 trajectories: sample lambda from posterior, sample\n"
+        "   For each of 3,000 trajectories: sample lambda from posterior, sample\n"
         "   future arrivals ~ Poisson(lambda*dt), sample LOS for each arrival,\n"
         "   compute census at each hour. This propagates both parameter\n"
         "   uncertainty and stochastic variation into occupancy forecasts.\n"
@@ -345,7 +345,7 @@ def generate_writeup_sections(belief: BeliefState, prior_mean: float,
             "Collecting more data cannot reduce this — only changing the\n"
             "underlying process (e.g., reducing arrival variability) can.\n"
             "This demonstrates the fundamental distinction between epistemic\n"
-            "uncertainty (what we don't know) and aleatoric uncertainty (what\n"
+            "uncertainty (what I don't know) and aleatoric uncertainty (what\n"
             "is inherently random)."
         )
         s.append("")
@@ -387,7 +387,7 @@ def generate_writeup_sections(belief: BeliefState, prior_mean: float,
         "contains protected health information. The synthetic data preserves "
         "statistical structure without exposing individual patients.\n"
         "\n"
-        "We explicitly do not recommend autonomous deployment of this model. "
+        "I explicitly do not recommend autonomous deployment of this model. "
         "Probabilistic forecasts should augment — never replace — clinical "
         "judgment. The failure-mode analysis demonstrates the model's known "
         "limitations, and the uncertainty quantification ensures that "
@@ -395,7 +395,7 @@ def generate_writeup_sections(belief: BeliefState, prior_mean: float,
         "\n"
         "The feedback-loop failure mode (Goodhart's Law) is particularly "
         "important: any model that influences the system it measures risks "
-        "becoming unreliable. We flag this as an irreducible limitation.\n"
+        "becoming unreliable. I flag this as an irreducible limitation.\n"
         "\n"
         "Key ethical safeguards:\n"
         "  1. All predictions include uncertainty intervals (never point estimates)\n"

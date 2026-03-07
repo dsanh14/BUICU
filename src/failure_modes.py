@@ -165,9 +165,9 @@ class FailureModeAnalyzer:
             )
 
         autocorr = np.corrcoef(daily_counts[:-1], daily_counts[1:])[0, 1]
-        detected = abs(autocorr) > 0.15
+        detected = abs(autocorr) > 0.05
         severity = "high" if abs(autocorr) > 0.3 else (
-            "medium" if abs(autocorr) > 0.15 else "low"
+            "medium" if abs(autocorr) > 0.1 else "low"
         )
         penalty = 1.0 + 0.2 * abs(autocorr) if detected else 1.0
 

@@ -49,7 +49,7 @@
 intensive care unit crowding. Using conjugate Gamma--Poisson inference,
 BUICU maintains a continuously updated belief distribution over the
 patient arrival rate~$\lambda$ and propagates posterior uncertainty
-through 2,000-trajectory Monte Carlo simulation to produce calibrated
+through 3,000-trajectory Monte Carlo simulation to produce calibrated
 occupancy forecasts. On 180 days of synthetic MIMIC-IV--calibrated data
 featuring two surge windows, a windowed Bayesian model outscores the
 stationary model by 39.4 log-predictive units, a gap entirely
@@ -86,7 +86,7 @@ planner must answer:
           confident is that estimate?
     \item Given the current census, what is the probability of exceeding
           nominal capacity within the next 48~hours?
-    \item Which modelling assumptions matter most, and where does the
+    \item Which modeling assumptions matter most, and where does the
           model break down?
 \end{enumerate}
 
@@ -200,7 +200,7 @@ the admission time and $L_i$ is the length of stay (LOS). Because
 $a_i$, $L_i$, and the total count are all random, $O_t$ is a random
 variable whose distribution cannot be obtained analytically.
 
-For each of $S = 2{,}000$ Monte Carlo trajectories I:
+For each of $S = 3{,}000$ Monte Carlo trajectories I:
 (i)~sample $\lambda^{(s)}$ from the Gamma posterior;
 (ii)~draw future arrivals from $\mathrm{Poisson}(\lambda^{(s)} \Delta t)$
     with uniform random arrival offsets;
@@ -285,7 +285,7 @@ Table~\ref{tab:sensitivity} reveals the hierarchy of assumptions.
 \begin{table}[H]
 \centering
 \small
-\caption{Sensitivity of 48-hour crowding probability to modelling
+\caption{Sensitivity of 48-hour crowding probability to modeling
 assumptions. The dominant lever is bed capacity.}
 \label{tab:sensitivity}
 \renewcommand{\arraystretch}{1.2}
@@ -519,7 +519,7 @@ $P(N_t \mid \lambda)$; Bayes' theorem applied as a conjugate update rule.
 \medskip\noindent\textit{Bayesian Inference:} Posterior predictive
 distribution; conjugate priors with exact closed-form updates; Law of
 Total Variance (epistemic/aleatoric decomposition); Monte Carlo
-simulation (2,000+ trajectories).
+simulation (3,000+ trajectories).
 
 \medskip\noindent\textit{Frequentist Methods:} Maximum likelihood
 estimation $\hat{\lambda}_\text{MLE} = \Sigma k / T$; Central Limit
