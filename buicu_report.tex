@@ -67,23 +67,16 @@ stretches the crowding probability range from a point estimate of
 % ── 1. Introduction ──────────────────────────────────────────────────
 \section{Introduction}
 
-Intensive care units operate at the margin. A single surge (flu season,
-a mass-casualty event, a cluster of post-surgical complications) can
-push a 50-bed unit from comfortable to catastrophic overnight. The human
-cost of being caught off-guard is measured in delayed surgeries, hallway
-beds, exhausted staff, and preventable deaths. Despite this, most
-hospital census projections remain deterministic: they predict
-\emph{a number} rather than \emph{a distribution}, projecting false
-confidence at precisely the moments when uncertainty matters most.
-
-BUICU (Belief Updating for ICU Crowding Under Uncertainty) addresses
-three questions: (1)~What is $\lambda$, and how confident is that
-estimate? (2)~What is the probability of exceeding capacity within
-48~hours? (3)~Which assumptions matter most, and where does the model
-break? The answers are (1)~exact conjugate inference, (2)~Monte Carlo
-simulation propagating all uncertainty, and (3)~a systematic
-failure-mode audit. I demonstrate all three via an interactive
-web application.
+Intensive care units operate at the margin: a single surge can push a
+50-bed unit from comfortable to catastrophic overnight, yet most census
+projections remain deterministic, projecting false confidence when
+uncertainty matters most. BUICU (Belief Updating for ICU Crowding Under
+Uncertainty) addresses three questions: (1)~What is $\lambda$, and how
+confident is that estimate? (2)~What is the probability of exceeding
+capacity within 48~hours? (3)~Which assumptions matter most, and where
+does the model break? The answers are exact conjugate inference, Monte
+Carlo simulation, and a systematic failure-mode audit, all demonstrated
+via an interactive web application.
 
 % ── 2. Methods ───────────────────────────────────────────────────────
 \section{Methods}
