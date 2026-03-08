@@ -14,12 +14,12 @@
 \usepackage{titlesec}
 \usepackage{caption}
 
-\geometry{margin=0.75in, top=0.85in, bottom=0.85in}
-\setstretch{1.05}
+\geometry{margin=0.75in, top=0.75in, bottom=0.75in}
+\setstretch{1.02}
 
-\titlespacing*{\section}{0pt}{10pt}{5pt}
-\titlespacing*{\subsection}{0pt}{7pt}{3pt}
-\captionsetup{font=small, labelfont=bf, skip=4pt}
+\titlespacing*{\section}{0pt}{8pt}{4pt}
+\titlespacing*{\subsection}{0pt}{6pt}{2pt}
+\captionsetup{font=small, labelfont=bf, skip=3pt}
 
 \hypersetup{
     colorlinks=true,
@@ -76,27 +76,14 @@ hospital census projections remain deterministic: they predict
 \emph{a number} rather than \emph{a distribution}, projecting false
 confidence at precisely the moments when uncertainty matters most.
 
-What is needed is a probabilistic forecast that is \emph{honest about
-what it does not know}. BUICU (Belief Updating for ICU Crowding Under
-Uncertainty) addresses three questions that any evidence-based capacity
-planner must answer:
-
-\begin{enumerate}
-    \item What is the current patient arrival rate $\lambda$, and how
-          confident is that estimate?
-    \item Given the current census, what is the probability of exceeding
-          nominal capacity within the next 48~hours?
-    \item Which modeling assumptions matter most, and where does the
-          model break down?
-\end{enumerate}
-
-The answer to (1) is exact Bayesian conjugate inference; the answer to
-(2) is Monte Carlo simulation that propagates every source of
-uncertainty; and the answer to (3) is a systematic failure-mode audit
-that compounds five identified limitations into a single, defensible
-uncertainty-widening factor. I demonstrate all three via an interactive
-web application that invites the reader to explore the model before
-(or instead of) reading the mathematics.
+BUICU (Belief Updating for ICU Crowding Under Uncertainty) addresses
+three questions: (1)~What is $\lambda$, and how confident is that
+estimate? (2)~What is the probability of exceeding capacity within
+48~hours? (3)~Which assumptions matter most, and where does the model
+break? The answers are (1)~exact conjugate inference, (2)~Monte Carlo
+simulation propagating all uncertainty, and (3)~a systematic
+failure-mode audit. I demonstrate all three via an interactive
+web application.
 
 % ── 2. Methods ───────────────────────────────────────────────────────
 \section{Methods}
@@ -153,21 +140,16 @@ built-in measure of estimation confidence.
 
 \subsection{Posterior Predictive Distribution}
 
-The natural next question, \emph{how many patients should one expect
-tomorrow?}, has a Bayesian answer that integrates out residual
-parameter uncertainty rather than ignoring it:
+Integrating out $\lambda$ yields the posterior predictive:
 \begin{equation}\label{eq:predpred}
     P(N_{\text{fut}} = k) = \int_0^\infty \!\mathrm{Pois}(k;\lambda)
-    \, \mathrm{Gamma}(\lambda;\alpha,\beta)\, d\lambda.
+    \, \mathrm{Gamma}(\lambda;\alpha,\beta)\, d\lambda,
 \end{equation}
-This integral evaluates to the \textbf{Negative Binomial} distribution
-with parameters $r = \alpha$ and $p = \beta/(\beta + \Delta t)$. The
-NegBin is overdispersed relative to a Poisson at the posterior mean:
-its variance reflects \emph{both} the irreducible Poisson randomness
-\emph{and} the remaining uncertainty about $\lambda$. After 180~days,
-the posterior predictive 95\% interval for tomorrow's count is
-$[8,\, 16]$, wider than a fixed-$\lambda$ Poisson would suggest,
-and appropriately so.
+which evaluates to a \textbf{Negative Binomial} with $r = \alpha$,
+$p = \beta/(\beta + \Delta t)$. The NegBin is overdispersed relative
+to a Poisson at the posterior mean, reflecting \emph{both} irreducible
+Poisson noise \emph{and} residual parameter uncertainty. After
+180~days, the 95\% predictive interval is $[8,\, 16]$.
 
 \subsection{Windowed Model for Non-Stationarity}
 
@@ -193,44 +175,28 @@ predictions:
 
 \subsection{Monte Carlo Occupancy Forecasting}
 
-The arrival rate determines how many patients enter the ICU; it says
-nothing about how long they stay. Occupancy at time~$t$ is
-$O_t = \sum_i \mathbf{1}[a_i \le t < a_i + L_i]$, where $a_i$ is
-the admission time and $L_i$ is the length of stay (LOS). Because
-$a_i$, $L_i$, and the total count are all random, $O_t$ is a random
-variable whose distribution cannot be obtained analytically.
-
-For each of $S = 3{,}000$ Monte Carlo trajectories I:
+Occupancy $O_t = \sum_i \mathbf{1}[a_i \le t < a_i + L_i]$ depends on
+arrival times $a_i$ and lengths of stay $L_i$, so its distribution is
+intractable. For each of $S = 3{,}000$ trajectories I:
 (i)~sample $\lambda^{(s)}$ from the Gamma posterior;
-(ii)~draw future arrivals from $\mathrm{Poisson}(\lambda^{(s)} \Delta t)$
-    with uniform random arrival offsets;
+(ii)~draw arrivals from $\mathrm{Poisson}(\lambda^{(s)} \Delta t)$;
 (iii)~bootstrap $L_i^{(s)}$ from the empirical LOS distribution; and
-(iv)~overlay the $n_0$ patients already in beds (deterministic, since
-    they are currently observed) to compute $O_t^{(s)}$
-    for $t \in [0,\, 48]$~hours.
-The result is a full predictive distribution over occupancy at every
-future time step, including quantile bands for operational
-decision-making.
+(iv)~overlay the $n_0$ currently observed patients to compute
+$O_t^{(s)}$ for $t \in [0,\, 48]$~hours, yielding quantile bands for
+operational decision-making.
 
 \subsection{Uncertainty Decomposition}
 
-A critical question for resource planning: how much of the forecast
-uncertainty could be eliminated by collecting more data? The
-\textbf{Law of Total Variance} provides a precise answer:
+The \textbf{Law of Total Variance} decomposes forecast uncertainty:
 \begin{equation}\label{eq:totvar}
     \mathrm{Var}[N] =
     \underbrace{E[\mathrm{Var}[N \mid \lambda]]}_{\text{aleatoric}}
     + \underbrace{\mathrm{Var}[E[N \mid \lambda]]}_{\text{epistemic}}.
 \end{equation}
-The first term, $E[\mathrm{Var}[N\mid\lambda]] = \Delta t\cdot\alpha/\beta$,
-is \emph{aleatoric} (irreducible): even if we knew $\lambda$ exactly,
-Poisson arrivals would still be random. No amount of additional data
-can shrink this term. The second term,
-$\mathrm{Var}[E[N\mid\lambda]] = \Delta t^2\cdot\alpha/\beta^2$,
-is \emph{epistemic} (reducible): it captures our remaining uncertainty
-about the true value of $\lambda$. As $\beta\to\infty$ with more
-observations, $\alpha/\beta^2\to 0$ and this component vanishes,
-leaving only irreducible noise.
+The aleatoric term ($\Delta t\cdot\alpha/\beta$) is irreducible Poisson
+noise. The epistemic term ($\Delta t^2\cdot\alpha/\beta^2$) captures
+residual uncertainty about $\lambda$ and vanishes as
+$\beta\to\infty$.
 
 % ── 3. Results ───────────────────────────────────────────────────────
 \section{Results}
@@ -360,58 +326,36 @@ sampling variability.
 
 \subsection{Limitations and Future Directions}
 
-The discharge model is the weakest link: LOS is sampled independently
-of occupancy, ignoring the well-documented \emph{boarding effect}.
-Incorporating $L_i(\text{occupancy})$ would sharpen the crowding
-forecast. The Poisson arrival model neglects temporal clustering that a
-\emph{Hawkes process} would capture. The windowed model discards
-historical context that a \emph{changepoint prior} or particle filter
-could retain. Finally, validation on real de-identified MIMIC-IV data
-is needed before any clinical deployment.
+The discharge model ignores the \emph{boarding effect}
+($L_i$ independent of occupancy). A Hawkes process would capture
+temporal clustering, and a changepoint prior could replace the fixed
+window. Validation on real de-identified MIMIC-IV data is needed
+before clinical deployment.
 
 \subsection{Ethical Considerations}
 
-Three safeguards are non-negotiable. First, only synthetic data is used.
-Second, every forecast is a distribution: the website never says
-``there will be 12 admissions''; it says ``expect 8--16 with 95\%
-probability.'' Third, failure modes are front-page content on the
-website, not a buried footnote. A model that informs staffing decisions
-in critical care and cannot articulate how it fails should not be
-trusted.
+Three safeguards are non-negotiable: only synthetic data is used;
+every forecast is a distribution, never a point prediction; and failure
+modes are front-page content on the website.
 
 \subsection{Use of Large Language Models}
 
-I used an LLM assistant throughout this project in two capacities.
-First, as a \textbf{code reviewer and debugger}: the LLM helped me
-identify inconsistencies between the report and the implementation
-(e.g., mismatched parameter values, pronoun consistency), catch edge
-cases in the failure-mode detection logic, and verify that mathematical
-formulas in the code matched their LaTeX counterparts. Second, as a
-\textbf{UI/UX collaborator}: I have limited front-end design experience,
-so the LLM helped me build the Streamlit interface, including CSS
-styling, layout structure, responsive design, and the interactive
-elements (sliders, tabs, mascot animations) that make the application
-feel polished. All statistical modeling, Bayesian inference,
-mathematical derivations, data generation, and analysis were my own
-work; the LLM served as a productivity tool for code quality and
-visual presentation.
+I used an LLM as a \textbf{code reviewer/debugger} (catching
+inconsistencies, verifying formulas) and a \textbf{UI/UX collaborator}
+(Streamlit CSS, layout, animations). All statistical modeling, Bayesian
+inference, mathematical derivations, and analysis were my own work.
 
 % ── 5. Conclusion ───────────────────────────────────────────────────
 \section{Conclusion}
 
-BUICU demonstrates that conjugate Bayesian inference, combined with
-Monte Carlo simulation and a rigorous failure-mode audit, produces
-probabilistic crowding forecasts that are both computationally trivial
-and epistemically honest. The central practical finding, that
-\emph{bed capacity, not model refinement, is the dominant lever for
-crowding risk}, reframes the problem from a statistical question to
-an operational one. The interactive deployment at
-\url{https://buicu-cs109.streamlit.app} makes this argument tangible:
-visitors can manipulate priors, watch beliefs update in real time,
-stress-test capacity scenarios, and inspect every assumption. A
-forecast that carries a credible interval, detects its own anomalies,
-and discloses its failure modes is more useful than a deterministic
-prediction that projects false confidence.
+BUICU shows that conjugate Bayesian inference with Monte Carlo
+simulation produces crowding forecasts that are computationally trivial
+and epistemically honest. The central finding, that \emph{bed capacity,
+not model refinement, dominates crowding risk}, reframes the problem
+from statistical to operational. The interactive deployment at
+\url{https://buicu-cs109.streamlit.app} makes this tangible: visitors
+can manipulate priors, watch beliefs update, stress-test capacity
+scenarios, and inspect every assumption.
 
 % ═══════════════════════════════════════════════════════════════════
 % APPENDIX — starts on a new page after the 3-page main body
