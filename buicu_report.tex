@@ -214,6 +214,15 @@ in action. The ``wrong'' prior required $\sim$15~days to be overwritten
 by the data, a useful calibration of how quickly evidence overwhelms
 belief. Figure~\ref{fig:prior_sens} illustrates this convergence.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{output/06_prior_sensitivity.png}
+\caption{Prior sensitivity: all three priors converge to the same
+posterior after $\sim$180 days; the ``wrong'' prior (centered at 5)
+is overridden within 15 days.}
+\label{fig:prior_sens}
+\end{figure}
+
 \subsection{Model Comparison}
 
 The windowed model outscores the stationary model by \textbf{39.4
@@ -229,6 +238,15 @@ accumulates, the two converge. Posterior predictive $p$-values flag
 these fall within the surge windows, confirming the model's ability to
 detect genuine distributional surprises. Figure~\ref{fig:logscore}
 shows the cumulative log-score advantage of the windowed model.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{output/10_log_score_comparison.png}
+\caption{Cumulative one-step-ahead log predictive score. The windowed
+model (green) outperforms the stationary model (blue) by 39.4 units,
+with the gap concentrated in the two surge windows (shaded).}
+\label{fig:logscore}
+\end{figure}
 
 \subsection{Uncertainty Decomposition}
 
@@ -247,6 +265,15 @@ scheduling. This is arguably the most practically important finding:
 the bottleneck is not statistical but operational.
 Figure~\ref{fig:vardecomp} visualizes how the epistemic component
 vanishes as data accumulates.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{output/12_variance_decomposition.png}
+\caption{Law of Total Variance decomposition over 180 days. The
+epistemic (orange) component shrinks toward zero as $\lambda$ is
+learned; the aleatoric (blue) floor is irreducible.}
+\label{fig:vardecomp}
+\end{figure}
 
 \subsection{Crowding Forecast and Sensitivity Analysis}
 
@@ -286,6 +313,15 @@ administrators where to focus: \emph{protecting bed availability matters
 more than refining the statistical model}.
 Figure~\ref{fig:forecast} shows the 48-hour occupancy forecast fan
 chart from the day-36 snapshot.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{output/04_occupancy_forecast.png}
+\caption{48-hour Monte Carlo occupancy forecast (3,000 trajectories)
+from day 36. Shaded bands show 50\% and 95\% credible intervals;
+the red line marks the 50-bed capacity threshold.}
+\label{fig:forecast}
+\end{figure}
 
 % ── 4. Discussion ────────────────────────────────────────────────────
 \section{Discussion}
@@ -530,44 +566,5 @@ structured as a narrative scroll:
           intervals, and an expandable failure-mode accordion with
           detection evidence and severity ratings.
 \end{enumerate}
-
-% ─────────────────────────────────────────────────────────────────────
-\section{Supplementary Figures}\label{app:figures}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.75\textwidth]{output/06_prior_sensitivity.png}
-\caption{Prior sensitivity: all three priors converge to the same
-posterior after $\sim$180 days; the ``wrong'' prior (centered at 5)
-is overridden within 15 days.}
-\label{fig:prior_sens}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.75\textwidth]{output/10_log_score_comparison.png}
-\caption{Cumulative one-step-ahead log predictive score. The windowed
-model (green) outperforms the stationary model (blue) by 39.4 units,
-with the gap concentrated in the two surge windows (shaded).}
-\label{fig:logscore}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.75\textwidth]{output/12_variance_decomposition.png}
-\caption{Law of Total Variance decomposition over 180 days. The
-epistemic (orange) component shrinks toward zero as $\lambda$ is
-learned; the aleatoric (blue) floor is irreducible.}
-\label{fig:vardecomp}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.75\textwidth]{output/04_occupancy_forecast.png}
-\caption{48-hour Monte Carlo occupancy forecast (3,000 trajectories)
-from day 36. Shaded bands show 50\% and 95\% credible intervals;
-the red line marks the 50-bed capacity threshold.}
-\label{fig:forecast}
-\end{figure}
 
 \end{document}
