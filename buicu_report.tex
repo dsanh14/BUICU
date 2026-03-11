@@ -379,25 +379,19 @@ priors, watch beliefs update, and stress-test capacity scenarios.
 
 \subsection{Conjugate Update}
 
-The Gamma--Poisson conjugacy follows from combining the Poisson
-likelihood $P(k \mid \lambda) = \lambda^k e^{-\lambda}/k!$ with the
-Gamma prior $p(\lambda) \propto \lambda^{\alpha_0 - 1} e^{-\beta_0 \lambda}$.
-The posterior is proportional to:
+Combining the Poisson likelihood $P(k \mid \lambda) = \lambda^k e^{-\lambda}/k!$ with the Gamma prior $p(\lambda) \propto \lambda^{\alpha_0 - 1} e^{-\beta_0 \lambda}$ yields
 \[
     p(\lambda \mid k_{1:T}) \;\propto\;
     \lambda^{\alpha_0 + \sum k_t - 1}\,
     e^{-(\beta_0 + T)\lambda}
-    \;\Longrightarrow\;
+    \;=\;
     \mathrm{Gamma}\!\left(\alpha_0 + \textstyle\sum k_t,\; \beta_0 + T\right).
 \]
-The posterior mean $\alpha/\beta$ converges to the sample mean
-$\bar{k}$ as $T \to \infty$; the posterior variance
-$\alpha/\beta^2 = O(1/T)$ contracts at the parametric rate.
+The posterior mean $\alpha/\beta \to \bar{k}$ as $T \to \infty$, and the posterior variance $\alpha/\beta^2 = O(1/T)$ contracts at the parametric rate.
 
 \subsection{KL Divergence Between Successive Posteriors}
 
-For two Gamma distributions $P_{\text{new}} = \mathrm{Gamma}(\alpha_n, \beta_n)$
-and $P_{\text{old}} = \mathrm{Gamma}(\alpha_o, \beta_o)$:
+For Gamma posteriors $P_{\text{new}} = \mathrm{Gamma}(\alpha_n, \beta_n)$ and $P_{\text{old}} = \mathrm{Gamma}(\alpha_o, \beta_o)$, the KL divergence admits a closed form:
 \begin{align}
     \mathrm{KL}(P_\text{new} \| P_\text{old})
     &= (\alpha_n - \alpha_o)\,\psi(\alpha_n)
@@ -405,140 +399,126 @@ and $P_{\text{old}} = \mathrm{Gamma}(\alpha_o, \beta_o)$:
     &\quad + \alpha_o\bigl(\ln\beta_n - \ln\beta_o\bigr)
     + \alpha_n\,\frac{\beta_o - \beta_n}{\beta_n},
 \end{align}
-where $\psi$ is the digamma function. This closed-form expression
-quantifies the information gained from a single day's observation.
+where $\psi$ denotes the digamma function. This expression quantifies the information gained per observation.
 
-\subsection{Full Variance Decomposition}
+\subsection{Variance Decomposition}
 
-For $N \mid \lambda \sim \mathrm{Poisson}(\lambda \Delta t)$ with
-$\lambda \sim \mathrm{Gamma}(\alpha, \beta)$:
+For $N \mid \lambda \sim \mathrm{Poisson}(\lambda \Delta t)$ with $\lambda \sim \mathrm{Gamma}(\alpha, \beta)$, the Law of Total Variance gives
 \begin{align}
     E[\mathrm{Var}[N \mid \lambda]]
     &= \Delta t \cdot \alpha / \beta
-    &&\text{(aleatoric)} \\
+    &&\text{(aleatoric),} \\
     \mathrm{Var}[E[N \mid \lambda]]
     &= \Delta t^2 \cdot \alpha / \beta^2
-    &&\text{(epistemic)}
+    &&\text{(epistemic).}
 \end{align}
-The epistemic fraction $(\Delta t / \beta)\big/(1 + \Delta t / \beta)$
-vanishes as $\beta \to \infty$, i.e., with more data.
+The epistemic fraction $(\Delta t / \beta)\big/(1 + \Delta t / \beta) \to 0$ as $\beta \to \infty$, confirming that parameter uncertainty vanishes with additional data while Poisson noise remains irreducible.
 
-\subsection{Random Variables Summary}
+\subsection{Random Variables}
+
+Table~\ref{tab:rv} summarizes the random variables and their distributional assumptions.
 
 \begin{table}[H]
 \centering
-\renewcommand{\arraystretch}{1.3}
+\caption{Random variables used in BUICU.}\label{tab:rv}
+\renewcommand{\arraystretch}{1.2}
+\small
 \begin{tabular}{@{}lll@{}}
 \toprule
 \textbf{Variable} & \textbf{Distribution} & \textbf{Role} \\
 \midrule
-$\lambda$ & $\mathrm{Gamma}(\alpha_0, \beta_0)$ & Prior on arrival rate (per day) \\
-$N_t \mid \lambda$ & $\mathrm{Poisson}(\lambda \cdot \Delta t)$ & Observed admissions in window $\Delta t$ \\
-$\lambda \mid k_{1:T}$ & $\mathrm{Gamma}(\alpha_0 + \Sigma k,\; \beta_0 + T)$ & Posterior (exact conjugate) \\
-$N_{\text{future}}$ & $\mathrm{NegBin}\!\left(\alpha_\text{post},\; \frac{\beta_\text{post}}{\beta_\text{post}+\Delta t}\right)$ & Posterior predictive for future counts \\
-$L$ & Empirical / LogNormal mixture & Length of stay (hours) \\
-$O_t$ & Monte Carlo simulation & ICU occupancy at time $t$ \\
+$\lambda$ & $\mathrm{Gamma}(\alpha_0, \beta_0)$ & Prior arrival rate \\
+$N_t \mid \lambda$ & $\mathrm{Poisson}(\lambda \Delta t)$ & Admission count \\
+$\lambda \mid k_{1:T}$ & $\mathrm{Gamma}(\alpha_0\!+\!\Sigma k,\, \beta_0\!+\!T)$ & Posterior rate \\
+$N_{\text{fut}}$ & $\mathrm{NegBin}(\alpha,\, \beta/(\beta\!+\!\Delta t))$ & Predictive count \\
+$L$ & LogNormal mixture & Length of stay \\
+$O_t$ & Monte Carlo & Occupancy \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 % ─────────────────────────────────────────────────────────────────────
-\section{Failure-Mode Details}\label{app:failure}
+\section{Failure-Mode Analysis}\label{app:failure}
 
-\noindent\textbf{FM1: Non-stationarity.}\quad
-The Poisson model assumes a constant $\lambda$. The real ICU has surge
-windows where the arrival rate is $1.8\times$ baseline. The stationary
-posterior averages across regimes, underestimating crowding risk during
-surges and overestimating it during lulls. \emph{Detection:} a surge/normal
-ratio of 1.76 exceeds the 1.3 threshold. \emph{Mitigation:} the windowed
-model. \emph{CI widening:} $\times 1.23$.
+Five failure modes are systematically audited, each following the structure: \emph{assumption $\to$ violation $\to$ consequence $\to$ mitigation}. Table~\ref{tab:fm} summarizes the quantitative impact; detailed descriptions follow.
 
-\medskip\noindent\textbf{FM2: Independence violations.}\quad
-The Poisson model treats each time window as independent. A lag-1
-autocorrelation of $r = 0.08$ in daily counts is detected, indicating
-mild clustering. More seriously, LOS tends to increase during crowding
-(boarding effect in real hospitals). \emph{Mitigation:} Hawkes process
-or autoregressive Poisson. \emph{CI widening:} $\times 1.02$.
+\begin{table}[H]
+\centering
+\caption{Failure modes and associated CI widening factors.}\label{tab:fm}
+\renewcommand{\arraystretch}{1.2}
+\small
+\begin{tabular}{@{}clc@{}}
+\toprule
+\textbf{ID} & \textbf{Failure Mode} & \textbf{CI Factor} \\
+\midrule
+FM1 & Non-stationarity & $\times 1.23$ \\
+FM2 & Independence violations & $\times 1.02$ \\
+FM3 & Informative censoring & $\times 1.04$ \\
+FM4 & Heavy-tailed LOS & $\times 1.14$ \\
+FM5 & Goodhart's Law & $\times 1.05$ \\
+\midrule
+& \textbf{Combined (multiplicative)} & $\boldsymbol{\times 2.27}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\medskip\noindent\textbf{FM3: Data quality.}\quad
-2.1\% of discharge timestamps are missing, not at random. Long-stay
-patients are more likely to have missing records (informative
-right-censoring), biasing the empirical LOS distribution downward.
-\emph{Mitigation:} Kaplan--Meier survival analysis. \emph{CI widening:}
-$\times 1.04$.
+\noindent\textbf{FM1: Non-stationarity.}\;
+The constant-$\lambda$ assumption is violated by surge windows in which the arrival rate reaches $1.8\times$ baseline. The stationary posterior averages across regimes, underestimating surge-period risk. A surge/normal ratio of 1.76 exceeds the 1.3 detection threshold. \emph{Mitigation:} windowed posterior (Eq.~\ref{eq:windowed}).
 
-\medskip\noindent\textbf{FM4: Heavy tails.}\quad
-The LOS distribution has excess kurtosis of 5.8, indicating that a few
-patients stay 20+ days. These rare but long stays create sustained
-periods of high occupancy that the empirical bootstrap may undersample.
-\emph{Mitigation:} Generalized Pareto fit to the upper tail; importance
-sampling. \emph{CI widening:} $\times 1.14$.
+\medskip\noindent\textbf{FM2: Independence violations.}\;
+Lag-1 autocorrelation of $r = 0.08$ in daily counts indicates mild temporal clustering. Additionally, LOS may increase during crowding (boarding effect), violating the independence between $L_i$ and $O_t$. \emph{Mitigation:} Hawkes or autoregressive Poisson models.
 
-\medskip\noindent\textbf{FM5: Goodhart's Law.}\quad
-If ICU staff use crowding forecasts to divert patients or accelerate
-discharges, the observed arrival rate reflects the \emph{managed} system,
-not the counterfactual. The model learns the managed rate and will
-underpredict crowding if interventions are removed, creating a dangerous
-oscillation. This failure mode cannot be empirically detected; I flag it
-unconditionally. \emph{CI widening:} $\times 1.05$.
+\medskip\noindent\textbf{FM3: Informative censoring.}\;
+Approximately 2.1\% of discharge timestamps are missing. Long-stay patients are disproportionately affected, introducing a downward bias in the empirical LOS distribution. \emph{Mitigation:} Kaplan--Meier survival estimation.
 
-\medskip\noindent The five penalties compound multiplicatively, yielding a
-\textbf{combined CI widening factor of $\times 2.27$}. Applied to the
-48-hour forecast, the model-limitation-adjusted interval for
-P(overcrowded) is 18\%--94\%.
+\medskip\noindent\textbf{FM4: Heavy-tailed LOS.}\;
+Excess kurtosis of 5.8 implies that rare stays of 20+ days create sustained high-occupancy episodes undersampled by the empirical bootstrap. \emph{Mitigation:} Generalized Pareto tail fit with importance sampling.
+
+\medskip\noindent\textbf{FM5: Goodhart's Law.}\;
+If clinical staff use forecasts to divert patients or accelerate discharges, the model learns the \emph{managed} rate and will underpredict risk when interventions are removed. This mode is empirically undetectable and is flagged unconditionally.
+
+\medskip\noindent The combined widening factor of $\times 2.27$ stretches the 48-hour crowding probability from a point estimate of 41.5\% to an adjusted interval of 18--94\%.
 
 % ─────────────────────────────────────────────────────────────────────
 \section{CS\,109 Concepts Demonstrated}\label{app:concepts}
 
-This project touches 16 concepts from the CS\,109 curriculum:
+Table~\ref{tab:concepts} maps the 16 CS\,109 topics exercised in this project to their specific realizations.
 
-\medskip\noindent\textit{Probability Foundations:} Random variables
-($N_t$, $L$, $O_t$, $\lambda$); probability distributions (Poisson,
-Gamma, Negative Binomial, LogNormal); conditional probability
-$P(N_t \mid \lambda)$; Bayes' theorem applied as a conjugate update rule.
-
-\medskip\noindent\textit{Bayesian Inference:} Posterior predictive
-distribution; conjugate priors with exact closed-form updates; Law of
-Total Variance (epistemic/aleatoric decomposition); Monte Carlo
-simulation (3,000+ trajectories).
-
-\medskip\noindent\textit{Frequentist Methods:} Maximum likelihood
-estimation $\hat{\lambda}_\text{MLE} = \Sigma k / T$; Central Limit
-Theorem for frequentist confidence intervals; KL divergence for
-information-gain quantification; hypothesis testing via posterior
-predictive $p$-values.
-
-\medskip\noindent\textit{Model Evaluation:} Proper scoring rules
-(one-step-ahead log predictive score); calibration via coverage
-probabilities and probability integral transform histograms; sensitivity
-analysis mapping assumptions to conclusions; prior sensitivity
-demonstrating posterior convergence.
+\begin{table}[H]
+\centering
+\caption{CS\,109 concepts and their application in BUICU.}\label{tab:concepts}
+\renewcommand{\arraystretch}{1.15}
+\small
+\begin{tabular}{@{}p{3.2cm}p{12cm}@{}}
+\toprule
+\textbf{Category} & \textbf{Concepts Applied} \\
+\midrule
+Probability Foundations
+  & Random variables ($N_t$, $L$, $O_t$, $\lambda$); probability distributions (Poisson, Gamma, Negative Binomial, LogNormal); conditional probability $P(N_t \mid \lambda)$; Bayes' theorem via conjugate updating. \\
+\addlinespace
+Bayesian Inference
+  & Posterior predictive distribution; conjugate priors with closed-form updates; Law of Total Variance decomposition; Monte Carlo simulation (3{,}000 trajectories). \\
+\addlinespace
+Frequentist Methods
+  & MLE $\hat{\lambda} = \Sigma k / T$; CLT-based confidence intervals; KL divergence for information-gain quantification; posterior predictive $p$-value testing. \\
+\addlinespace
+Model Evaluation
+  & Proper scoring rules (log predictive score); calibration via coverage probabilities and PIT histograms; sensitivity analysis; prior robustness analysis. \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % ─────────────────────────────────────────────────────────────────────
-\section{Interactive Website Architecture}\label{app:website}
+\section{Interactive Application}\label{app:website}
 
-The Streamlit application at \url{https://buicu-cs109.streamlit.app} is
-structured as a narrative scroll:
+The deployed Streamlit application (\url{https://buicu-cs109.streamlit.app}) is organized as a guided narrative with five modules:
 
-\begin{enumerate}
-    \item \textbf{Interactive hook:} A slider invites users to guess the
-          arrival rate before any data is revealed. After locking in a
-          guess, the posterior mean is exposed alongside a comparison
-          verdict.
-    \item \textbf{Prior explorer:} Visitors manipulate $\alpha_0$ and
-          $\beta_0$ sliders and watch the prior--posterior comparison
-          update in real time.
-    \item \textbf{Sequential update trajectory:} A 180-day animation
-          scrubber shows the posterior evolving day by day, with KL
-          divergence and anomaly flags displayed at each step.
-    \item \textbf{Crowding forecast:} Capacity and horizon sliders
-          recompute the Monte Carlo estimate on demand (cached with
-          \texttt{@st.cache\_data}). A sensitivity bar chart shows
-          P(overcrowded) at 80\%, 100\%, and 120\% capacity.
-    \item \textbf{Model evaluation tab:} Three-panel view comparing
-          stationary vs.\ windowed trajectories, MLE vs.\ Bayesian
-          intervals, and an expandable failure-mode accordion with
-          detection evidence and severity ratings.
+\begin{enumerate}[leftmargin=2em]
+    \item \textbf{Arrival-rate elicitation.} Users submit a prior guess via slider; the posterior mean is then revealed with a comparison metric.
+    \item \textbf{Prior explorer.} Adjustable $(\alpha_0, \beta_0)$ sliders update the prior--posterior overlay in real time.
+    \item \textbf{Sequential update.} A 180-day scrubber animates the posterior evolution, displaying KL divergence and anomaly flags at each step.
+    \item \textbf{Crowding forecast.} Capacity and horizon controls trigger cached Monte Carlo recomputation; a sensitivity chart displays $P(\text{crowding})$ at 80\%, 100\%, and 120\% capacity.
+    \item \textbf{Model evaluation.} Tabbed panels compare stationary vs.\ windowed log scores, MLE vs.\ Bayesian intervals, and an expandable failure-mode audit with detection evidence.
 \end{enumerate}
 
 % ─────────────────────────────────────────────────────────────────────
@@ -547,18 +527,14 @@ structured as a narrative scroll:
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\textwidth]{output/10_log_score_comparison.png}
-\caption{Cumulative one-step-ahead log predictive score. The windowed
-model (green) outperforms the stationary model (blue) by 39.4 units,
-with the gap concentrated in the two surge windows (shaded).}
+\caption{Cumulative one-step-ahead log predictive score. The windowed model outperforms the stationary model by 39.4 units, with the gap concentrated in the surge windows (shaded).}
 \label{fig:logscore}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\textwidth]{output/12_variance_decomposition.png}
-\caption{Law of Total Variance decomposition over 180 days. The
-epistemic (orange) component shrinks toward zero as $\lambda$ is
-learned; the aleatoric (blue) floor is irreducible.}
+\caption{Law of Total Variance decomposition over 180 days. The epistemic component (orange) vanishes as $\lambda$ is learned; the aleatoric floor (blue) is irreducible Poisson noise.}
 \label{fig:vardecomp}
 \end{figure}
 
